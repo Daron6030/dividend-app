@@ -5,27 +5,27 @@ from datetime import date
 
 st.set_page_config(
     page_title="Dividends Space",
-    page_icon="●",
+    page_icon="💼",
     layout="wide"
 )
 
 DATA_FILE = "data.json"
 
 USERS = {
-    "bogdan": {
-        "password": "1234",
+    "Daron6030": {
+        "password": "Daron6030?",
         "role": "admin",
         "name": "Тарасенко Богдан",
         "partner": "Тарасенко",
     },
-    "yadrovy": {
-        "password": "1111",
+    "Iadrov": {
+        "password": "181216",
         "role": "partner",
         "name": "Ядровы",
         "partner": "Ядровы",
     },
-    "alisa": {
-        "password": "2222",
+    "Alisa": {
+        "password": "669933",
         "role": "partner",
         "name": "Тарасенко Алиса",
         "partner": "Тарасенко",
@@ -40,23 +40,21 @@ RESTAURANTS = {
     "Науки": {"Ядровы": 50, "Тарасенко": 50},
 }
 
-MENU_ADMIN = {
-    "Главная": "Главная",
-    "Ресторан": "Ресторан за месяц",
-    "Архив": "Архив выводов",
-}
-
-
 st.markdown(
     """
     <style>
     .stApp {
-        background: #f6f7f9;
+        background-color: #f6f7f9;
+        color: #111827;
     }
 
     section[data-testid="stSidebar"] {
-        background: #ffffff;
+        background-color: #ffffff;
         border-right: 1px solid #e5e7eb;
+    }
+
+    h1, h2, h3, h4, h5, h6, p, label {
+        color: #111827 !important;
     }
 
     div[data-testid="metric-container"] {
@@ -68,50 +66,27 @@ st.markdown(
     }
 
     div[data-testid="metric-container"] label {
-        color: #6b7280;
-        font-size: 14px;
+        color: #6b7280 !important;
     }
 
     .stButton > button {
+        width: 100%;
         border-radius: 14px;
-        background: #111827;
-        color: white;
-        border: none;
+        background: #ffffff;
+        color: #111827;
+        border: 1px solid #d1d5db;
         font-weight: 600;
-        padding: 10px 18px;
+        padding: 10px 16px;
     }
 
     .stButton > button:hover {
-        background: #374151;
+        background: #111827;
         color: white;
+        border: 1px solid #111827;
     }
 
-    .soft-card {
-        background: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 24px;
-        padding: 24px;
-        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-        margin-bottom: 18px;
-    }
-
-    .small-muted {
-        color: #6b7280;
-        font-size: 14px;
-    }
-
-    .big-title {
-        font-size: 34px;
-        font-weight: 800;
-        color: #111827;
-        margin-bottom: 0;
-    }
-
-    .section-title {
-        font-size: 22px;
-        font-weight: 750;
-        color: #111827;
-        margin-bottom: 8px;
+    input, textarea {
+        color: #111827 !important;
     }
     </style>
     """,
@@ -126,7 +101,6 @@ def money(value):
 def load_data():
     if not os.path.exists(DATA_FILE):
         return {"profits": [], "withdrawals": []}
-
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -143,18 +117,10 @@ def month_key(d):
 def month_label(key):
     year, month = key.split("-")
     names = {
-        "01": "Январь",
-        "02": "Февраль",
-        "03": "Март",
-        "04": "Апрель",
-        "05": "Май",
-        "06": "Июнь",
-        "07": "Июль",
-        "08": "Август",
-        "09": "Сентябрь",
-        "10": "Октябрь",
-        "11": "Ноябрь",
-        "12": "Декабрь",
+        "01": "Январь", "02": "Февраль", "03": "Март",
+        "04": "Апрель", "05": "Май", "06": "Июнь",
+        "07": "Июль", "08": "Август", "09": "Сентябрь",
+        "10": "Октябрь", "11": "Ноябрь", "12": "Декабрь",
     }
     return f"{names[month]} {year}"
 
@@ -171,12 +137,7 @@ def set_profit(data, restaurant, month, amount):
         if row["restaurant"] == restaurant and row["month"] == month:
             row["amount"] = amount
             return
-
-    data["profits"].append({
-        "restaurant": restaurant,
-        "month": month,
-        "amount": amount
-    })
+    data["profits"].append({"restaurant": restaurant, "month": month, "amount": amount})
 
 
 def get_withdrawals(data, restaurant, month):
@@ -187,18 +148,14 @@ def get_withdrawals(data, restaurant, month):
 
 
 def planned_distribution(restaurant, profit):
-    result = {}
-    for name, percent in RESTAURANTS[restaurant].items():
-        result[name] = round(profit * percent / 100, 2)
-    return result
+    return {
+        name: round(profit * percent / 100, 2)
+        for name, percent in RESTAURANTS[restaurant].items()
+    }
 
 
 def fact_distribution(withdrawals):
-    result = {
-        "Ядровы": 0,
-        "Тарасенко": 0,
-        "Возврат инвестиций": 0
-    }
+    result = {"Ядровы": 0, "Тарасенко": 0, "Возврат инвестиций": 0}
 
     for row in withdrawals:
         amount = row["amount"]
@@ -243,65 +200,63 @@ def restaurant_summary(data, restaurant, month):
 
 
 def page_header(title, subtitle):
-    st.markdown(f"<div class='big-title'>{title}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='small-muted'>{subtitle}</div>", unsafe_allow_html=True)
-    st.write("")
+    st.title(title)
+    st.caption(subtitle)
 
 
 def render_admin_restaurant_card(restaurant, month, profit, total_withdrawn, yadrovy, tarasenko):
     y_accrued, y_withdrawn, y_balance, invest_note = yadrovy
     t_accrued, t_withdrawn, t_balance, _ = tarasenko
 
-    st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
-    st.subheader(f"{restaurant}")
-    st.caption(month_label(month))
+    with st.container(border=True):
+        st.subheader(restaurant)
+        st.caption(month_label(month))
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Прибыль месяца", money(profit))
-    c2.metric("Всего выведено", money(total_withdrawn))
-    c3.metric("Остаток прибыли", money(profit - total_withdrawn))
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Прибыль месяца", money(profit))
+        c2.metric("Всего выведено", money(total_withdrawn))
+        c3.metric("Остаток прибыли", money(profit - total_withdrawn))
 
-    st.divider()
+        st.divider()
 
-    c4, c5 = st.columns(2)
+        c4, c5 = st.columns(2)
 
-    with c4:
-        st.markdown("#### Ядровы")
-        st.metric("Остаток", money(y_balance))
-        st.write(f"Начислено: **{money(y_accrued)}**")
-        st.write(f"Выведено: **{money(y_withdrawn)}**")
-        if invest_note > 0:
-            st.caption(f"Из них {money(invest_note)} — возврат инвестиций.")
+        with c4:
+            st.markdown("#### Ядровы")
+            st.metric("Остаток", money(y_balance))
+            st.write(f"Начислено: **{money(y_accrued)}**")
+            st.write(f"Выведено: **{money(y_withdrawn)}**")
+            if invest_note > 0:
+                st.caption(f"Из них {money(invest_note)} — возврат инвестиций.")
 
-    with c5:
-        st.markdown("#### Тарасенко")
-        st.metric("Остаток", money(t_balance))
-        st.write(f"Начислено: **{money(t_accrued)}**")
-        st.write(f"Выведено: **{money(t_withdrawn)}**")
-
-    st.markdown("</div>", unsafe_allow_html=True)
+        with c5:
+            st.markdown("#### Тарасенко")
+            st.metric("Остаток", money(t_balance))
+            st.write(f"Начислено: **{money(t_accrued)}**")
+            st.write(f"Выведено: **{money(t_withdrawn)}**")
 
 
 def render_partner_restaurant_card(restaurant, month, accrued, withdrawn, balance, invest_note=0):
-    st.markdown("<div class='soft-card'>", unsafe_allow_html=True)
-    st.subheader(restaurant)
-    st.caption(month_label(month))
+    with st.container(border=True):
+        st.subheader(restaurant)
+        st.caption(month_label(month))
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Начислено", money(accrued))
-    c2.metric("Выведено", money(withdrawn))
-    c3.metric("Остаток", money(balance))
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Начислено", money(accrued))
+        c2.metric("Выведено", money(withdrawn))
+        c3.metric("Остаток", money(balance))
 
-    if invest_note > 0:
-        st.caption(f"Из них {money(invest_note)} — возврат инвестиций.")
-
-    st.markdown("</div>", unsafe_allow_html=True)
+        if invest_note > 0:
+            st.caption(f"Из них {money(invest_note)} — возврат инвестиций.")
 
 
 # LOGIN
 
 if "user" not in st.session_state:
     st.session_state.user = None
+
+if "menu" not in st.session_state:
+    st.session_state.menu = "Главная"
 
 if st.session_state.user is None:
     page_header("Dividends Space", "Кабинет распределения дивидендов")
@@ -312,6 +267,7 @@ if st.session_state.user is None:
     if st.button("Войти"):
         if login in USERS and USERS[login]["password"] == password:
             st.session_state.user = USERS[login]
+            st.session_state.menu = "Главная"
             st.rerun()
         else:
             st.error("Неверный логин или пароль")
@@ -334,17 +290,28 @@ all_months = sorted(
     reverse=True
 )
 
+
+# SIDEBAR
+
 with st.sidebar:
     st.markdown("### Dividends Space")
     st.caption(user["name"])
     st.divider()
 
     if user["role"] == "admin":
-        menu = st.radio(
-            "Раздел",
-            list(MENU_ADMIN.keys()),
-            label_visibility="collapsed"
-        )
+        if st.button("Главная"):
+            st.session_state.menu = "Главная"
+            st.rerun()
+
+        if st.button("Ресторан"):
+            st.session_state.menu = "Ресторан"
+            st.rerun()
+
+        if st.button("Архив"):
+            st.session_state.menu = "Архив"
+            st.rerun()
+
+        menu = st.session_state.menu
     else:
         menu = "Мой кабинет"
 
@@ -352,6 +319,7 @@ with st.sidebar:
 
     if st.button("Выйти"):
         st.session_state.user = None
+        st.session_state.menu = "Главная"
         st.rerun()
 
 
@@ -370,14 +338,10 @@ if user["role"] == "partner":
     restaurant = st.selectbox("Ресторан", list(RESTAURANTS.keys()))
 
     profit, total_withdrawn, yadrovy, tarasenko, withdrawals = restaurant_summary(
-        data,
-        restaurant,
-        selected_month
+        data, restaurant, selected_month
     )
 
-    partner = user["partner"]
-
-    if partner == "Ядровы":
+    if user["partner"] == "Ядровы":
         accrued, withdrawn, balance, invest_note = yadrovy
     else:
         accrued, withdrawn, balance, invest_note = tarasenko
@@ -388,7 +352,7 @@ if user["role"] == "partner":
         accrued,
         withdrawn,
         balance,
-        invest_note if partner == "Ядровы" else 0
+        invest_note if user["partner"] == "Ядровы" else 0
     )
 
     st.stop()
@@ -413,9 +377,7 @@ if menu == "Главная":
         restaurant = st.selectbox("Ресторан", list(RESTAURANTS.keys()))
 
     profit, total_withdrawn, yadrovy, tarasenko, withdrawals = restaurant_summary(
-        data,
-        restaurant,
-        selected_month
+        data, restaurant, selected_month
     )
 
     render_admin_restaurant_card(
@@ -445,9 +407,7 @@ elif menu == "Ресторан":
         restaurant = st.selectbox("Ресторан", list(RESTAURANTS.keys()))
 
     profit, total_withdrawn, yadrovy, tarasenko, withdrawals = restaurant_summary(
-        data,
-        restaurant,
-        selected_month
+        data, restaurant, selected_month
     )
 
     st.markdown("### Прибыль месяца")
