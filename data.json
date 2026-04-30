@@ -1,0 +1,10 @@
+{
+    "profits": [
+        {
+            "restaurant": "Гончарная",
+            "month": "2026-04",
+            "amount": 1200000
+        }
+    ],
+    "withdrawals": []
+}
