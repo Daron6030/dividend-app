@@ -43,7 +43,7 @@ RESTAURANTS = {
 
 st.markdown("""
 <style>
-/* Убираем боковое меню полностью */
+/* Убираем боковое меню Streamlit */
 section[data-testid="stSidebar"] {
     display: none !important;
 }
@@ -55,35 +55,77 @@ button[aria-label="Close sidebar"] {
     display: none !important;
 }
 
+/* Убираем верхнюю служебную панель Streamlit */
+header[data-testid="stHeader"] {
+    display: none !important;
+}
+
 .stApp {
     background: #f6f7f9;
     color: #111827;
 }
 
-/* Основной текст */
+/* Чуть меньше верхний отступ */
+.block-container {
+    padding-top: 1.2rem !important;
+}
+
+/* Текст */
 h1, h2, h3, h4, h5, h6, p, label {
     color: #111827 !important;
 }
 
-/* Верхняя черная панель */
-.top-panel {
+/* Черная верхняя шапка */
+.app-header {
     background: #111827;
-    padding: 14px 18px;
-    border-radius: 18px;
-    margin-bottom: 22px;
-    color: white;
+    border-radius: 22px;
+    padding: 18px;
+    margin-bottom: 24px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18);
 }
 
-.top-title {
-    color: white !important;
-    font-size: 18px;
-    font-weight: 700;
-    margin-bottom: 4px;
+.app-title {
+    color: #ffffff !important;
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 2px;
 }
 
-.top-user {
+.app-user {
     color: #d1d5db !important;
-    font-size: 13px;
+    font-size: 14px;
+}
+
+/* Кнопки */
+.stButton > button {
+    width: 100%;
+    border-radius: 13px;
+    background: #ffffff;
+    color: #111827 !important;
+    border: 1px solid #d1d5db;
+    font-weight: 650;
+    padding: 10px 12px;
+}
+
+.stButton > button:hover {
+    background: #111827;
+    color: #ffffff !important;
+    border: 1px solid #111827;
+}
+
+/* Кнопки меню в шапке */
+.header-menu button {
+    background: #1f2937 !important;
+    color: #ffffff !important;
+    border: 1px solid #374151 !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    padding: 9px 10px !important;
+}
+
+.header-menu button:hover {
+    background: #ffffff !important;
+    color: #111827 !important;
 }
 
 /* Поля ввода */
@@ -93,7 +135,7 @@ input, textarea {
     border: 1px solid #d1d5db !important;
 }
 
-/* Selectbox без агрессивной перекраски, чтобы не появлялись странные символы */
+/* Selectbox */
 div[data-baseweb="select"] > div {
     background-color: #ffffff !important;
     color: #111827 !important;
@@ -127,38 +169,36 @@ div[data-testid="metric-container"] div {
     color: #111827 !important;
 }
 
-/* Кнопки */
-.stButton > button {
-    width: 100%;
-    border-radius: 12px;
-    background: #ffffff;
-    color: #111827 !important;
-    border: 1px solid #d1d5db;
-    font-weight: 600;
-    padding: 10px 16px;
-}
-
-.stButton > button:hover {
-    background: #111827;
-    color: #ffffff !important;
-    border: 1px solid #111827;
-}
-
-/* Кнопки верхнего меню */
-.top-menu-button button {
-    background: #111827 !important;
-    color: white !important;
-    border: 1px solid #374151 !important;
-}
-
-.top-menu-button button:hover {
-    background: #374151 !important;
-    color: white !important;
-}
-
-/* Белые карточки */
+/* Карточки */
 div[data-testid="stVerticalBlockBorderWrapper"] {
     background: #ffffff;
+}
+
+/* Мобильная адаптация */
+@media (max-width: 768px) {
+    .block-container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        padding-top: 0.8rem !important;
+    }
+
+    .app-header {
+        padding: 16px;
+        border-radius: 20px;
+    }
+
+    .app-title {
+        font-size: 22px;
+    }
+
+    .app-user {
+        font-size: 14px;
+    }
+
+    h1 {
+        font-size: 42px !important;
+        line-height: 1.05 !important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -284,12 +324,12 @@ def page_header(title, subtitle):
     st.caption(subtitle)
 
 
-def render_top_panel(user):
+def render_header(user):
     st.markdown(
         f"""
-        <div class="top-panel">
-            <div class="top-title">Dividends Space</div>
-            <div class="top-user">{user["name"]}</div>
+        <div class="app-header">
+            <div class="app-title">Dividends Space</div>
+            <div class="app-user">{user["name"]}</div>
         </div>
         """,
         unsafe_allow_html=True
@@ -297,7 +337,9 @@ def render_top_panel(user):
 
 
 def render_admin_menu():
-    c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+    st.markdown('<div class="header-menu">', unsafe_allow_html=True)
+
+    c1, c2, c3, c4 = st.columns(4)
 
     with c1:
         if st.button("Главная"):
@@ -320,15 +362,21 @@ def render_admin_menu():
             st.session_state.menu = "Главная"
             st.rerun()
 
+    st.markdown('</div>', unsafe_allow_html=True)
+
 
 def render_partner_menu():
-    c1, c2 = st.columns([3, 1])
+    st.markdown('<div class="header-menu">', unsafe_allow_html=True)
 
-    with c2:
+    c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+
+    with c4:
         if st.button("Выйти"):
             st.session_state.user = None
             st.session_state.menu = "Главная"
             st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 def render_admin_card(restaurant, month, profit, total, yadrovy, tarasenko):
@@ -420,7 +468,7 @@ all_months = sorted(
     reverse=True
 )
 
-render_top_panel(user)
+render_header(user)
 
 if user["role"] == "admin":
     render_admin_menu()
