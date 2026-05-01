@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import os
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 # -------------------------
 # CONFIG
@@ -100,8 +101,8 @@ if not st.session_state.auth:
 # -------------------------
 st.markdown(f"""
 <div class='topbox'>
-<h1>Dividends Space</h1>
-<div>{st.session_state.user}</div>
+<h1 style="text-align: center;">Dividends Space</h1>
+<div style="text-align: center;">{st.session_state.user}</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -142,7 +143,7 @@ if tab == "Главная":
             mime="application/json"
         )
 
-    # CHART
+    # CHART (growing profits)
     st.subheader("Динамика прибыли за 6 месяцев")
 
     months6 = months[-6:]
@@ -156,7 +157,7 @@ if tab == "Главная":
 
     st.line_chart(rows, x="Месяц", y=list(RESTAURANTS.keys()), height=260)
 
-    # CARDS
+    # CARDS (monthly data for each restaurant)
     st.subheader("Все заведения за месяц")
 
     cols = st.columns(5)
@@ -176,7 +177,7 @@ if tab == "Главная":
             </div>
             """, unsafe_allow_html=True)
 
-    # PARTNERS
+    # PARTNERS for selected restaurant
     st.subheader(f"Партнёры — {selected_restaurant}")
 
     total = get_profit(selected_restaurant, selected_month)
