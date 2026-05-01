@@ -53,20 +53,19 @@ header[data-testid="stHeader"] {display:none !important;}
 
 .block-container {
     padding-top: 1rem !important;
-    padding-left: 1.2rem !important;
-    padding-right: 1.2rem !important;
+    padding-left: 1.1rem !important;
+    padding-right: 1.1rem !important;
 }
 
 h1,h2,h3,h4,h5,h6,p,label {
     color:#111827 !important;
 }
 
-/* верхняя плашка */
 .app-header {
     background:#111827;
     border-radius:22px;
     padding:18px;
-    margin-bottom:14px;
+    margin-bottom:18px;
     box-shadow:0 10px 28px rgba(15,23,42,0.14);
 }
 
@@ -82,102 +81,56 @@ h1,h2,h3,h4,h5,h6,p,label {
     margin-top:4px;
 }
 
-/* горизонтальное меню по центру */
-.nav-row {
-    display:flex;
-    flex-direction:row;
-    flex-wrap:nowrap;
-    justify-content:center;
-    align-items:center;
-    gap:10px;
-    margin-bottom:26px;
-    overflow-x:auto;
-    width:100%;
+/* вкладки сверху */
+button[data-baseweb="tab"] {
+    font-weight:700 !important;
+    color:#111827 !important;
 }
 
-.nav-row a {
-    display:inline-flex;
-    justify-content:center;
-    align-items:center;
-    text-decoration:none !important;
-    background:#111827;
-    color:white !important;
-    padding:10px 16px;
-    border-radius:13px;
-    font-weight:700;
-    font-size:15px;
-    white-space:nowrap;
-    border:1px solid #374151;
-    min-width:90px;
+button[data-baseweb="tab"][aria-selected="true"] {
+    color:#111827 !important;
 }
 
-.nav-row a:hover {
-    background:#374151;
-    color:white !important;
-}
-
-/* поля */
+/* поля ввода */
 input, textarea {
     background:white !important;
     color:#111827 !important;
     border:1px solid #d1d5db !important;
 }
 
-/* selectbox */
-div[data-baseweb="select"] > div {
-    background:white !important;
-    color:#111827 !important;
-    border:1px solid #d1d5db !important;
-}
-
-div[data-baseweb="select"] span {
-    color:#111827 !important;
-}
-
-/* убираем странный вертикальный курсор/символ в selectbox */
-div[data-baseweb="select"] input {
-    caret-color: transparent !important;
-    color: transparent !important;
-}
-
-div[data-baseweb="select"] svg {
-    color:#9ca3af !important;
-}
-
-/* number input */
 div[data-baseweb="input"] input {
     background:white !important;
     color:#111827 !important;
 }
 
-/* метрики компактнее */
+/* карточки метрик */
 div[data-testid="metric-container"] {
     background:white;
     border:1px solid #e5e7eb;
-    padding:14px;
+    padding:13px;
     border-radius:16px;
     box-shadow:0 8px 22px rgba(15,23,42,0.04);
 }
 
 div[data-testid="metric-container"] label {
     color:#6b7280 !important;
-    font-size:14px !important;
+    font-size:13px !important;
 }
 
 div[data-testid="metric-container"] div {
     color:#111827 !important;
-    font-size:30px !important;
+    font-size:27px !important;
 }
 
-/* обычные кнопки */
+/* кнопки */
 .stButton > button {
     width:100%;
     border-radius:12px;
     background:white;
     color:#111827 !important;
     border:1px solid #d1d5db;
-    font-weight:600;
-    padding:10px 16px;
+    font-weight:650;
+    padding:10px 12px;
 }
 
 .stButton > button:hover {
@@ -191,7 +144,6 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     background:white;
 }
 
-/* мобильная версия */
 @media (max-width: 768px) {
     .block-container {
         padding-left:1rem !important;
@@ -202,7 +154,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     .app-header {
         padding:16px;
         border-radius:20px;
-        margin-bottom:12px;
+        margin-bottom:16px;
     }
 
     .app-title {
@@ -213,43 +165,27 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
         font-size:13px;
     }
 
-    .nav-row {
-        justify-content:center;
-        gap:7px;
-        margin-bottom:22px;
-    }
-
-    .nav-row a {
-        font-size:13px;
-        padding:9px 10px;
-        min-width:auto;
-    }
-
     h1 {
-        font-size:36px !important;
+        font-size:34px !important;
         line-height:1.05 !important;
         margin-bottom:6px !important;
     }
 
     h2 {
-        font-size:30px !important;
+        font-size:28px !important;
     }
 
     h3 {
-        font-size:24px !important;
+        font-size:23px !important;
     }
 
     div[data-testid="metric-container"] {
-        padding:12px;
+        padding:11px;
         border-radius:14px;
     }
 
-    div[data-testid="metric-container"] label {
-        font-size:13px !important;
-    }
-
     div[data-testid="metric-container"] div {
-        font-size:26px !important;
+        font-size:24px !important;
     }
 
     p {
@@ -365,11 +301,6 @@ def summary(data, restaurant, month):
     return profit, total_withdrawn, yadrovy, tarasenko, withdrawals
 
 
-def page_header(title, subtitle):
-    st.title(title)
-    st.caption(subtitle)
-
-
 def render_header(user):
     st.markdown(
         f"""
@@ -382,28 +313,65 @@ def render_header(user):
     )
 
 
-def render_nav(user):
-    if user["role"] == "admin":
+def month_picker(all_months, current_month, key_prefix):
+    if f"{key_prefix}_month_index" not in st.session_state:
+        st.session_state[f"{key_prefix}_month_index"] = (
+            all_months.index(current_month) if current_month in all_months else 0
+        )
+
+    index = st.session_state[f"{key_prefix}_month_index"]
+
+    c1, c2, c3 = st.columns([1, 3, 1])
+
+    with c1:
+        if st.button("‹", key=f"{key_prefix}_month_prev"):
+            if index < len(all_months) - 1:
+                st.session_state[f"{key_prefix}_month_index"] += 1
+                st.rerun()
+
+    with c2:
         st.markdown(
-            """
-            <div class="nav-row">
-                <a href="?page=home">Главная</a>
-                <a href="?page=restaurant">Ресторан</a>
-                <a href="?page=archive">Архив</a>
-                <a href="?page=logout">Выйти</a>
-            </div>
-            """,
+            f"<h3 style='text-align:center; margin-top:8px;'>{month_label(all_months[index])}</h3>",
             unsafe_allow_html=True
         )
-    else:
-        st.markdown(
-            """
-            <div class="nav-row">
-                <a href="?page=logout">Выйти</a>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+
+    with c3:
+        if st.button("›", key=f"{key_prefix}_month_next"):
+            if index > 0:
+                st.session_state[f"{key_prefix}_month_index"] -= 1
+                st.rerun()
+
+    return all_months[st.session_state[f"{key_prefix}_month_index"]]
+
+
+def restaurant_picker(key_prefix):
+    if f"{key_prefix}_restaurant" not in st.session_state:
+        st.session_state[f"{key_prefix}_restaurant"] = list(RESTAURANTS.keys())[0]
+
+    restaurants = list(RESTAURANTS.keys())
+
+    row1 = st.columns(2)
+    row2 = st.columns(2)
+    row3 = st.columns(1)
+
+    layout = [
+        (row1[0], restaurants[0]),
+        (row1[1], restaurants[1]),
+        (row2[0], restaurants[2]),
+        (row2[1], restaurants[3]),
+        (row3[0], restaurants[4]),
+    ]
+
+    for col, name in layout:
+        with col:
+            selected = st.session_state[f"{key_prefix}_restaurant"] == name
+            label = f"● {name}" if selected else name
+
+            if st.button(label, key=f"{key_prefix}_restaurant_{name}"):
+                st.session_state[f"{key_prefix}_restaurant"] = name
+                st.rerun()
+
+    return st.session_state[f"{key_prefix}_restaurant"]
 
 
 def render_admin_card(restaurant, month, profit, total, yadrovy, tarasenko):
@@ -455,30 +423,10 @@ def render_partner_card(restaurant, month, accrued, withdrawn, balance, invest_n
 if "user" not in st.session_state:
     st.session_state.user = None
 
-if "menu" not in st.session_state:
-    st.session_state.menu = "Главная"
-
-
-query_page = st.query_params.get("page")
-
-if query_page == "logout":
-    st.session_state.user = None
-    st.session_state.menu = "Главная"
-    st.query_params.clear()
-    st.rerun()
-
-if query_page == "home":
-    st.session_state.menu = "Главная"
-
-if query_page == "restaurant":
-    st.session_state.menu = "Ресторан"
-
-if query_page == "archive":
-    st.session_state.menu = "Архив"
-
 
 if st.session_state.user is None:
-    page_header("Dividends Space", "Кабинет распределения дивидендов")
+    st.title("Dividends Space")
+    st.caption("Кабинет распределения дивидендов")
 
     login = st.text_input("Логин")
     password = st.text_input("Пароль", type="password")
@@ -486,8 +434,6 @@ if st.session_state.user is None:
     if st.button("Войти"):
         if login in USERS and USERS[login]["password"] == password:
             st.session_state.user = USERS[login]
-            st.session_state.menu = "Главная"
-            st.query_params.clear()
             st.rerun()
         else:
             st.error("Неверный логин или пароль")
@@ -497,7 +443,6 @@ if st.session_state.user is None:
 
 user = st.session_state.user
 data = load_data()
-
 today = date.today()
 current_month = month_key(today)
 
@@ -511,79 +456,74 @@ all_months = sorted(
 )
 
 render_header(user)
-render_nav(user)
-st.divider()
+
+if user["role"] == "admin":
+    tab_main, tab_restaurant, tab_archive, tab_exit = st.tabs(
+        ["Главная", "Ресторан", "Архив", "Выйти"]
+    )
+else:
+    tab_main, tab_exit = st.tabs(["Мой кабинет", "Выйти"])
 
 
 if user["role"] == "partner":
-    page_header("Мой кабинет", "Только нужные цифры без лишней информации")
+    with tab_main:
+        st.title("Мой кабинет")
+        st.caption("Только нужные цифры без лишней информации")
 
-    month = st.selectbox(
-        "Месяц",
-        all_months,
-        index=all_months.index(current_month) if current_month in all_months else 0,
-        format_func=month_label
-    )
+        st.markdown("### Месяц")
+        month = month_picker(all_months, current_month, "partner")
 
-    restaurant = st.selectbox("Ресторан", list(RESTAURANTS.keys()))
+        st.markdown("### Ресторан")
+        restaurant = restaurant_picker("partner")
 
-    profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
+        profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
 
-    if user["partner"] == "Ядровы":
-        accrued, withdrawn, balance, invest = yadrovy
-    else:
-        accrued, withdrawn, balance, invest = tarasenko
+        if user["partner"] == "Ядровы":
+            accrued, withdrawn, balance, invest = yadrovy
+        else:
+            accrued, withdrawn, balance, invest = tarasenko
 
-    render_partner_card(
-        restaurant,
-        month,
-        accrued,
-        withdrawn,
-        balance,
-        invest if user["partner"] == "Ядровы" else 0
-    )
+        render_partner_card(
+            restaurant,
+            month,
+            accrued,
+            withdrawn,
+            balance,
+            invest if user["partner"] == "Ядровы" else 0
+        )
+
+    with tab_exit:
+        if st.button("Выйти из кабинета"):
+            st.session_state.user = None
+            st.rerun()
 
     st.stop()
 
 
-menu = st.session_state.menu
+with tab_main:
+    st.title("Главная")
+    st.caption("Выберите месяц и ресторан")
 
-if menu == "Главная":
-    page_header("Главная", "Выберите месяц и ресторан")
+    st.markdown("### Месяц")
+    month = month_picker(all_months, current_month, "main")
 
-    c1, c2 = st.columns(2)
-
-    with c1:
-        month = st.selectbox(
-            "Месяц",
-            all_months,
-            index=all_months.index(current_month) if current_month in all_months else 0,
-            format_func=month_label
-        )
-
-    with c2:
-        restaurant = st.selectbox("Ресторан", list(RESTAURANTS.keys()))
+    st.markdown("### Ресторан")
+    restaurant = restaurant_picker("main")
 
     profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
 
     render_admin_card(restaurant, month, profit, total, yadrovy, tarasenko)
 
 
-elif menu == "Ресторан":
-    page_header("Ресторан", "Ввод прибыли и выводов")
+with tab_restaurant:
+    st.title("Ресторан")
+    st.caption("Ввод прибыли и выводов")
 
-    c1, c2 = st.columns(2)
+    st.markdown("### Месяц")
+    month = month_picker(all_months, current_month, "restaurant")
 
-    with c1:
-        month = st.selectbox(
-            "Месяц",
-            all_months,
-            index=all_months.index(current_month) if current_month in all_months else 0,
-            format_func=month_label
-        )
-
-    with c2:
-        restaurant = st.selectbox("Ресторан", list(RESTAURANTS.keys()))
+    st.markdown("### Ресторан")
+    restaurant = restaurant_picker("restaurant")
 
     profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
 
@@ -616,9 +556,10 @@ elif menu == "Ресторан":
 
     default_mode = "После утверждения прибыли" if profit > 0 else "До утверждения прибыли"
 
-    mode = st.selectbox(
+    mode_options = ["До утверждения прибыли", "После утверждения прибыли"]
+    mode = st.radio(
         "Режим распределения",
-        ["До утверждения прибыли", "После утверждения прибыли"],
+        mode_options,
         index=0 if default_mode == "До утверждения прибыли" else 1
     )
 
@@ -674,24 +615,21 @@ elif menu == "Ресторан":
                     st.rerun()
 
 
-elif menu == "Архив":
-    page_header("Архив", "Все сохраненные выводы")
+with tab_archive:
+    st.title("Архив")
+    st.caption("Все сохраненные выводы")
 
     if not data["withdrawals"]:
         st.info("Выводов пока нет")
     else:
-        selected_restaurant = st.selectbox(
-            "Фильтр по ресторану",
-            ["Все"] + list(RESTAURANTS.keys())
-        )
+        st.markdown("### Ресторан")
+        selected_restaurant = restaurant_picker("archive_filter")
 
         rows = list(enumerate(data["withdrawals"]))
-
-        if selected_restaurant != "Все":
-            rows = [
-                (i, row) for i, row in rows
-                if row["restaurant"] == selected_restaurant
-            ]
+        rows = [
+            (i, row) for i, row in rows
+            if row["restaurant"] == selected_restaurant
+        ]
 
         sorted_rows = sorted(
             rows,
@@ -714,3 +652,9 @@ elif menu == "Архив":
                     st.rerun()
 
                 st.caption(f"Режим: {row['mode']}")
+
+
+with tab_exit:
+    if st.button("Выйти из кабинета"):
+        st.session_state.user = None
+        st.rerun()
