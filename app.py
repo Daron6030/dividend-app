@@ -41,24 +41,49 @@ RESTAURANTS = {
     "Науки": {"Ядровы": 50, "Тарасенко": 50},
 }
 
-# ---------- STYLE ----------
-
 st.markdown("""
 <style>
+/* Убираем боковое меню полностью */
+section[data-testid="stSidebar"] {
+    display: none !important;
+}
+
+button[title="Open sidebar"],
+button[title="Close sidebar"],
+button[aria-label="Open sidebar"],
+button[aria-label="Close sidebar"] {
+    display: none !important;
+}
+
 .stApp {
     background: #f6f7f9;
     color: #111827;
 }
 
-/* Боковая панель */
-section[data-testid="stSidebar"] {
-    background: #ffffff;
-    border-right: 1px solid #e5e7eb;
-}
-
 /* Основной текст */
 h1, h2, h3, h4, h5, h6, p, label {
     color: #111827 !important;
+}
+
+/* Верхняя черная панель */
+.top-panel {
+    background: #111827;
+    padding: 14px 18px;
+    border-radius: 18px;
+    margin-bottom: 22px;
+    color: white;
+}
+
+.top-title {
+    color: white !important;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.top-user {
+    color: #d1d5db !important;
+    font-size: 13px;
 }
 
 /* Поля ввода */
@@ -68,11 +93,7 @@ input, textarea {
     border: 1px solid #d1d5db !important;
 }
 
-/* Selectbox: месяц, ресторан, режим */
-div[data-baseweb="select"] {
-    background-color: #ffffff !important;
-}
-
+/* Selectbox без агрессивной перекраски, чтобы не появлялись странные символы */
 div[data-baseweb="select"] > div {
     background-color: #ffffff !important;
     color: #111827 !important;
@@ -83,35 +104,13 @@ div[data-baseweb="select"] span {
     color: #111827 !important;
 }
 
-div[data-baseweb="popover"] {
-    background-color: #ffffff !important;
-}
-
-ul[role="listbox"] {
-    background-color: #ffffff !important;
-}
-
-li[role="option"] {
-    background-color: #ffffff !important;
-    color: #111827 !important;
-}
-
-li[role="option"]:hover {
-    background-color: #f3f4f6 !important;
-    color: #111827 !important;
-}
-
 /* Number input */
-div[data-baseweb="input"] {
-    background-color: #ffffff !important;
-}
-
 div[data-baseweb="input"] input {
     background-color: #ffffff !important;
     color: #111827 !important;
 }
 
-/* Карточки метрик */
+/* Метрики */
 div[data-testid="metric-container"] {
     background: #ffffff;
     border: 1px solid #e5e7eb;
@@ -145,26 +144,25 @@ div[data-testid="metric-container"] div {
     border: 1px solid #111827;
 }
 
-/* Стрелка открытия/закрытия бокового меню */
-button[title="Open sidebar"],
-button[title="Close sidebar"],
-button[aria-label="Open sidebar"],
-button[aria-label="Close sidebar"] {
-    background: #ffffff !important;
-    color: #111827 !important;
-    border: 1px solid #d1d5db !important;
-    border-radius: 10px !important;
+/* Кнопки верхнего меню */
+.top-menu-button button {
+    background: #111827 !important;
+    color: white !important;
+    border: 1px solid #374151 !important;
 }
 
-/* Контейнеры */
+.top-menu-button button:hover {
+    background: #374151 !important;
+    color: white !important;
+}
+
+/* Белые карточки */
 div[data-testid="stVerticalBlockBorderWrapper"] {
     background: #ffffff;
 }
 </style>
 """, unsafe_allow_html=True)
 
-
-# ---------- HELPERS ----------
 
 def money(value):
     return f"{value:,.0f}".replace(",", " ") + " ₽"
@@ -173,7 +171,6 @@ def money(value):
 def load_data():
     if not os.path.exists(DATA_FILE):
         return {"profits": [], "withdrawals": []}
-
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -190,18 +187,10 @@ def month_key(d):
 def month_label(key):
     year, month = key.split("-")
     names = {
-        "01": "Январь",
-        "02": "Февраль",
-        "03": "Март",
-        "04": "Апрель",
-        "05": "Май",
-        "06": "Июнь",
-        "07": "Июль",
-        "08": "Август",
-        "09": "Сентябрь",
-        "10": "Октябрь",
-        "11": "Ноябрь",
-        "12": "Декабрь",
+        "01": "Январь", "02": "Февраль", "03": "Март",
+        "04": "Апрель", "05": "Май", "06": "Июнь",
+        "07": "Июль", "08": "Август", "09": "Сентябрь",
+        "10": "Октябрь", "11": "Ноябрь", "12": "Декабрь",
     }
     return f"{names[month]} {year}"
 
@@ -295,6 +284,53 @@ def page_header(title, subtitle):
     st.caption(subtitle)
 
 
+def render_top_panel(user):
+    st.markdown(
+        f"""
+        <div class="top-panel">
+            <div class="top-title">Dividends Space</div>
+            <div class="top-user">{user["name"]}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+def render_admin_menu():
+    c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+
+    with c1:
+        if st.button("Главная"):
+            st.session_state.menu = "Главная"
+            st.rerun()
+
+    with c2:
+        if st.button("Ресторан"):
+            st.session_state.menu = "Ресторан"
+            st.rerun()
+
+    with c3:
+        if st.button("Архив"):
+            st.session_state.menu = "Архив"
+            st.rerun()
+
+    with c4:
+        if st.button("Выйти"):
+            st.session_state.user = None
+            st.session_state.menu = "Главная"
+            st.rerun()
+
+
+def render_partner_menu():
+    c1, c2 = st.columns([3, 1])
+
+    with c2:
+        if st.button("Выйти"):
+            st.session_state.user = None
+            st.session_state.menu = "Главная"
+            st.rerun()
+
+
 def render_admin_card(restaurant, month, profit, total, yadrovy, tarasenko):
     y_accrued, y_withdrawn, y_balance, invest_note = yadrovy
     t_accrued, t_withdrawn, t_balance, _ = tarasenko
@@ -384,33 +420,14 @@ all_months = sorted(
     reverse=True
 )
 
+render_top_panel(user)
 
-# ---------- SIDEBAR ----------
+if user["role"] == "admin":
+    render_admin_menu()
+else:
+    render_partner_menu()
 
-with st.sidebar:
-    st.markdown("### Dividends Space")
-    st.caption(user["name"])
-    st.divider()
-
-    if user["role"] == "admin":
-        if st.button("Главная"):
-            st.session_state.menu = "Главная"
-            st.rerun()
-
-        if st.button("Ресторан"):
-            st.session_state.menu = "Ресторан"
-            st.rerun()
-
-        if st.button("Архив"):
-            st.session_state.menu = "Архив"
-            st.rerun()
-
-    st.divider()
-
-    if st.button("Выйти"):
-        st.session_state.user = None
-        st.session_state.menu = "Главная"
-        st.rerun()
+st.divider()
 
 
 # ---------- PARTNER VIEW ----------
