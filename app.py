@@ -64,21 +64,24 @@ h1,h2,h3,h4,h5,h6,p,label {
 .app-header {
     background:#111827;
     border-radius:22px;
-    padding:18px;
+    padding:20px 18px;
     margin-bottom:18px;
     box-shadow:0 10px 28px rgba(15,23,42,0.14);
+    text-align:center;
 }
 
 .app-title {
     color:white !important;
     font-size:24px;
     font-weight:800;
+    text-align:center;
 }
 
 .app-user {
     color:#d1d5db !important;
     font-size:14px;
-    margin-top:4px;
+    margin-top:6px;
+    text-align:center;
 }
 
 /* Центрируем вкладки */
@@ -125,7 +128,6 @@ div[data-baseweb="select"] span {
     color:#111827 !important;
 }
 
-/* Убираем странный iPhone-курсор/палку в selectbox */
 div[data-baseweb="select"] input {
     opacity:0 !important;
     width:0px !important;
@@ -133,27 +135,8 @@ div[data-baseweb="select"] input {
     caret-color:transparent !important;
 }
 
-/* стрелка select */
 div[data-baseweb="select"] svg {
     color:#c7ccd3 !important;
-}
-
-/* выпадающий список */
-div[data-baseweb="popover"] {
-    background:white !important;
-}
-
-ul[role="listbox"] {
-    background:white !important;
-}
-
-li[role="option"] {
-    background:white !important;
-    color:#111827 !important;
-}
-
-li[role="option"]:hover {
-    background:#f3f4f6 !important;
 }
 
 /* Метрики */
@@ -172,7 +155,7 @@ div[data-testid="metric-container"] label {
 
 div[data-testid="metric-container"] div {
     color:#111827 !important;
-    font-size:27px !important;
+    font-size:25px !important;
 }
 
 /* Кнопки */
@@ -204,13 +187,13 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     }
 
     .app-header {
-        padding:16px;
+        padding:18px 14px;
         border-radius:20px;
         margin-bottom:16px;
     }
 
     .app-title {
-        font-size:22px;
+        font-size:23px;
     }
 
     .app-user {
@@ -248,7 +231,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     }
 
     div[data-testid="metric-container"] div {
-        font-size:24px !important;
+        font-size:22px !important;
     }
 
     p {
@@ -488,7 +471,6 @@ else:
 if user["role"] == "partner":
     with tab_main:
         st.title("Мой кабинет")
-        st.caption("Только нужные цифры без лишней информации")
 
         month = select_month("partner_month", all_months, current_month)
         restaurant = select_restaurant("partner_restaurant")
@@ -519,24 +501,19 @@ if user["role"] == "partner":
 
 with tab_main:
     st.title("Главная")
-    st.caption("Выберите месяц и ресторан")
 
-    c1, c2 = st.columns(2)
+    month = select_month("main_month", all_months, current_month)
 
-    with c1:
-        month = select_month("main_month", all_months, current_month)
+    st.divider()
 
-    with c2:
-        restaurant = select_restaurant("main_restaurant")
-
-    profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
-
-    render_admin_card(restaurant, month, profit, total, yadrovy, tarasenko)
+    for restaurant in RESTAURANTS:
+        profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
+        render_admin_card(restaurant, month, profit, total, yadrovy, tarasenko)
 
 
 with tab_restaurant:
     st.title("Ресторан")
-    st.caption("Ввод прибыли и выводов")
+    st.caption("Детальный просмотр и ввод данных")
 
     c1, c2 = st.columns(2)
 
