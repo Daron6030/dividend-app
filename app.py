@@ -644,4 +644,716 @@ def get_profit(data, restaurant, month):
 
 
 def set_profit(data, restaurant, month, amount):
-    restaurant = normalize_rest
+    restaurant = normalize_restaurant_name(restaurant)
+
+    for row in data["profits"]:
+        if row["restaurant"] == restaurant and row["month"] == month:
+            row["amount"] = amount
+            return
+
+    data["profits"].append({
+        "restaurant": restaurant,
+        "month": month,
+        "amount": amount
+    })
+
+
+def get_withdrawals(data, restaurant, month):
+    restaurant = normalize_restaurant_name(restaurant)
+
+    return [
+        row for row in data["withdrawals"]
+        if row["restaurant"] == restaurant and row["month"] == month
+    ]
+
+
+def distribution_to_partners(amount, distribution):
+    result = {"Ядровы": 0, "Тарасенко": 0}
+
+    for name, percent in distribution.items():
+        value = amount * percent / 100
+
+        if name == "Возврат инвестиций":
+            result["Ядровы"] += value
+        elif name in result:
+            result[name] += value
+
+    return result
+
+
+def get_today_payouts(data):
+    today = date.today().strftime("%Y-%m-%d")
+    result = {}
+    totals = {"Ядровы": 0, "Тарасенко": 0}
+
+    for row in data["withdrawals"]:
+        if row.get("date") != today:
+            continue
+
+        restaurant = normalize_restaurant_name(row["restaurant"])
+        amount = row.get("amount", 0)
+        mode = row.get("mode", "")
+
+        if mode == "До утверждения прибыли":
+            distribution = {"Ядровы": 50, "Тарасенко": 50}
+        else:
+            distribution = row.get("distribution") or get_distribution(restaurant, row["month"])
+
+        partners = distribution_to_partners(amount, distribution)
+
+        if restaurant not in result:
+            result[restaurant] = {"Ядровы": 0, "Тарасенко": 0}
+
+        result[restaurant]["Ядровы"] += partners["Ядровы"]
+        result[restaurant]["Тарасенко"] += partners["Тарасенко"]
+
+        totals["Ядровы"] += partners["Ядровы"]
+        totals["Тарасенко"] += partners["Тарасенко"]
+
+    return result, totals
+
+
+def planned_distribution(restaurant, month, profit):
+    distribution = get_distribution(restaurant, month)
+
+    return {
+        name: round(profit * percent / 100, 2)
+        for name, percent in distribution.items()
+    }
+
+
+def fact_distribution(withdrawals):
+    result = {"Ядровы": 0, "Тарасенко": 0, "Возврат инвестиций": 0}
+
+    for row in withdrawals:
+        amount = row["amount"]
+        mode = row.get("mode", "После утверждения прибыли")
+
+        if mode == "До утверждения прибыли":
+            result["Ядровы"] += amount / 2
+            result["Тарасенко"] += amount / 2
+        else:
+            restaurant = row.get("restaurant")
+            month = row.get("month")
+            distribution = row.get("distribution")
+
+            if not distribution and restaurant and month:
+                distribution = get_distribution(restaurant, month)
+
+            for name, percent in distribution.items():
+                result[name] += amount * percent / 100
+
+    return result
+
+
+def closed_fact_from_plan(plan):
+    return {
+        "Ядровы": plan.get("Ядровы", 0),
+        "Тарасенко": plan.get("Тарасенко", 0),
+        "Возврат инвестиций": plan.get("Возврат инвестиций", 0),
+    }
+
+
+def partner_amounts(partner, plan, fact):
+    accrued = plan.get(partner, 0)
+    withdrawn = fact.get(partner, 0)
+    invest_note = 0
+
+    if partner == "Ядровы":
+        accrued += plan.get("Возврат инвестиций", 0)
+        withdrawn += fact.get("Возврат инвестиций", 0)
+        invest_note = plan.get("Возврат инвестиций", 0)
+
+    balance = accrued - withdrawn
+    return accrued, withdrawn, balance, invest_note
+
+
+def summary(data, restaurant, month):
+    profit = get_profit(data, restaurant, month)
+    withdrawals = get_withdrawals(data, restaurant, month)
+
+    plan = planned_distribution(restaurant, month, profit)
+
+    if is_closed_month(month):
+        fact = closed_fact_from_plan(plan)
+        total_withdrawn = profit
+    else:
+        fact = fact_distribution(withdrawals)
+        total_withdrawn = sum(x["amount"] for x in withdrawals)
+
+    yadrovy = partner_amounts("Ядровы", plan, fact)
+    tarasenko = partner_amounts("Тарасенко", plan, fact)
+
+    return profit, total_withdrawn, yadrovy, tarasenko, withdrawals
+
+
+def render_header(user):
+    st.markdown(
+        f"""
+<div class="app-header">
+<div class="app-title">Dividends Space</div>
+<div class="app-user">{user["name"]}</div>
+</div>
+""",
+        unsafe_allow_html=True
+    )
+
+
+def render_today_payout_panel(data):
+    payouts, totals = get_today_payouts(data)
+
+    if not payouts:
+        return
+
+    html = '''
+<div class="today-panel">
+<div class="today-title">Сегодня к выдаче</div>
+<div class="today-grid">
+'''
+
+    for restaurant, values in payouts.items():
+        html += f'''
+<div class="today-card">
+<div class="today-restaurant">{restaurant}</div>
+<div class="today-line">Ядровы: <b>{money(values["Ядровы"])}</b></div>
+<div class="today-line">Тарасенко: <b>{money(values["Тарасенко"])}</b></div>
+</div>
+'''
+
+    html += f'''
+</div>
+<div class="today-total">
+Итого сегодня — Ядровы: {money(totals["Ядровы"])} · Тарасенко: {money(totals["Тарасенко"])}
+</div>
+</div>
+'''
+
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def render_backup_button(data):
+    backup_data = json.dumps(data, ensure_ascii=False, indent=4)
+
+    st.download_button(
+        "Скачать резервную копию",
+        backup_data,
+        file_name="dividends_backup.json",
+        mime="application/json"
+    )
+
+
+def render_profit_chart(data, months):
+    months_with_data = []
+
+    for month in months:
+        total = sum(get_profit(data, restaurant, month) for restaurant in RESTAURANTS)
+        if total > 0:
+            months_with_data.append(month)
+
+    chart_months = list(reversed(months_with_data[:6]))
+
+    if not chart_months:
+        st.info("Пока нет данных для графика.")
+        return
+
+    restaurant_colors = {
+        "Гончарная": "#111827",
+        "Фонтанка": "#2563eb",
+        "Спортивная": "#16a34a",
+        "Загородный": "#f97316",
+        "Науки": "#9333ea",
+    }
+
+    width = 860
+    height = 280
+    left = 60
+    right = 30
+    top = 28
+    bottom = 52
+
+    values = []
+    for month in chart_months:
+        for restaurant in RESTAURANTS:
+            values.append(get_profit(data, restaurant, month))
+
+    max_value = max(values) if values else 1
+    if max_value <= 0:
+        max_value = 1
+
+    plot_width = width - left - right
+    plot_height = height - top - bottom
+
+    def x_pos(index):
+        if len(chart_months) == 1:
+            return left + plot_width / 2
+        return left + index * (plot_width / (len(chart_months) - 1))
+
+    def y_pos(value):
+        return top + plot_height - (value / max_value) * plot_height
+
+    svg = f'''
+<div class="chart-box">
+<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" xmlns="http://www.w3.org/2000/svg">
+<rect x="0" y="0" width="{width}" height="{height}" fill="white"/>
+'''
+
+    for i in range(5):
+        y = top + i * (plot_height / 4)
+        value = max_value - i * (max_value / 4)
+        svg += f'<line x1="{left}" y1="{y}" x2="{width-right}" y2="{y}" stroke="#e5e7eb" stroke-width="1"/>'
+        svg += f'<text x="8" y="{y+4}" font-size="11" fill="#6b7280">{int(value/1000)}к</text>'
+
+    for idx, month in enumerate(chart_months):
+        x = x_pos(idx)
+        svg += f'<text x="{x}" y="{height-20}" text-anchor="middle" font-size="11" fill="#6b7280">{month_label(month).split()[0]}</text>'
+
+    for restaurant, color in restaurant_colors.items():
+        points = []
+        for idx, month in enumerate(chart_months):
+            value = get_profit(data, restaurant, month)
+            points.append(f'{x_pos(idx)},{y_pos(value)}')
+
+        if len(points) > 1:
+            svg += f'<polyline points="{" ".join(points)}" fill="none" stroke="{color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
+
+        for idx, month in enumerate(chart_months):
+            value = get_profit(data, restaurant, month)
+            svg += f'<circle cx="{x_pos(idx)}" cy="{y_pos(value)}" r="3.5" fill="{color}"/>'
+
+    legend_x = left
+    legend_y = 14
+
+    for restaurant, color in restaurant_colors.items():
+        svg += f'<circle cx="{legend_x}" cy="{legend_y}" r="4" fill="{color}"/>'
+        svg += f'<text x="{legend_x + 8}" y="{legend_y + 4}" font-size="11" fill="#111827">{restaurant}</text>'
+        legend_x += 130
+
+    svg += '</svg></div>'
+
+    st.subheader("Динамика прибыли за 6 месяцев")
+    st.markdown(svg, unsafe_allow_html=True)
+
+
+def render_all_restaurant_cards(data, month):
+    html = '<div class="cards-grid">'
+
+    for restaurant in RESTAURANTS:
+        profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
+        y_balance = yadrovy[2]
+        t_balance = tarasenko[2]
+
+        closed_text = ""
+        if is_closed_month(month):
+            closed_text = '<div class="mini-small"><b>Закрыто</b></div>'
+
+        html += f'''
+<div class="mini-card">
+<div class="mini-title">{restaurant}</div>
+<div class="mini-label">Прибыль</div>
+<div class="mini-money">{money(profit)}</div>
+<div class="mini-label">Выведено</div>
+<div class="mini-money">{money(total)}</div>
+<div class="mini-small">Я: <b>{money(y_balance)}</b><br>Т: <b>{money(t_balance)}</b></div>
+{closed_text}
+</div>
+'''
+
+    html += '</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def render_partner_details(yadrovy, tarasenko):
+    y_accrued, y_withdrawn, y_balance, invest_note = yadrovy
+    t_accrued, t_withdrawn, t_balance, _ = tarasenko
+
+    y_note = ""
+    if invest_note > 0:
+        y_note = f'<div class="partner-note">Из них {money(invest_note)} — возврат инвестиций.</div>'
+
+    st.markdown(
+        f'''
+<div class="partner-box">
+<div class="partner-title">Ядровы</div>
+<div class="partner-row">
+<div><div class="partner-label">Начислено</div><div class="partner-money">{money(y_accrued)}</div></div>
+<div><div class="partner-label">Выведено</div><div class="partner-money">{money(y_withdrawn)}</div></div>
+<div><div class="partner-label">Остаток</div><div class="partner-money">{money(y_balance)}</div></div>
+</div>
+{y_note}
+</div>
+
+<div class="partner-box">
+<div class="partner-title">Тарасенко</div>
+<div class="partner-row">
+<div><div class="partner-label">Начислено</div><div class="partner-money">{money(t_accrued)}</div></div>
+<div><div class="partner-label">Выведено</div><div class="partner-money">{money(t_withdrawn)}</div></div>
+<div><div class="partner-label">Остаток</div><div class="partner-money">{money(t_balance)}</div></div>
+</div>
+</div>
+''',
+        unsafe_allow_html=True
+    )
+
+
+def render_partner_card(restaurant, accrued, withdrawn, balance, invest_note=0):
+    note = ""
+    if invest_note > 0:
+        note = f'<div class="partner-note">Из них {money(invest_note)} — возврат инвестиций.</div>'
+
+    st.markdown(
+        f'''
+<div class="partner-box">
+<div class="partner-title">{restaurant}</div>
+<div class="partner-row">
+<div><div class="partner-label">Начислено</div><div class="partner-money">{money(accrued)}</div></div>
+<div><div class="partner-label">Выведено</div><div class="partner-money">{money(withdrawn)}</div></div>
+<div><div class="partner-label">Остаток</div><div class="partner-money">{money(balance)}</div></div>
+</div>
+{note}
+</div>
+''',
+        unsafe_allow_html=True
+    )
+
+
+def select_month(key, months, default_month=None, label="Месяц"):
+    index = 0
+
+    if default_month and default_month in months:
+        index = months.index(default_month)
+
+    return st.selectbox(
+        label,
+        months,
+        index=index,
+        format_func=month_label,
+        key=key
+    )
+
+
+def select_restaurant(key):
+    return st.selectbox(
+        "Ресторан",
+        list(RESTAURANTS.keys()),
+        key=key
+    )
+
+
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+
+if st.session_state.user is None:
+    st.title("Dividends Space")
+    st.caption("Кабинет распределения дивидендов")
+
+    login = st.text_input("Логин")
+    password = st.text_input("Пароль", type="password")
+
+    if st.button("Войти"):
+        if login in USERS and USERS[login]["password"] == password:
+            st.session_state.user = USERS[login]
+            st.rerun()
+        else:
+            st.error("Неверный логин или пароль")
+
+    st.stop()
+
+
+user = st.session_state.user
+data = load_data()
+months = all_months(data)
+
+default_main_month = latest_profit_month(data)
+default_work_month = previous_month_key(date.today())
+
+render_header(user)
+
+if user["role"] == "admin":
+    tab_main, tab_restaurant, tab_archive, tab_exit = st.tabs(
+        ["Главная", "Ресторан", "Архив", "Выйти"]
+    )
+else:
+    tab_main, tab_archive, tab_exit = st.tabs(
+        ["Мой кабинет", "Архив", "Выйти"]
+    )
+
+
+if user["role"] == "partner":
+    with tab_main:
+        st.title("Мой кабинет")
+
+        month = select_month("partner_month", months, default_main_month)
+        selected_restaurant = select_restaurant("partner_restaurant")
+
+        if is_closed_month(month):
+            st.markdown(
+                '<div class="closed-badge">Закрытый месяц — распределено полностью</div>',
+                unsafe_allow_html=True
+            )
+
+        render_today_payout_panel(data)
+
+        st.subheader("Все заведения за месяц")
+        render_all_restaurant_cards(data, month)
+
+        st.subheader(f"Партнеры — {selected_restaurant}")
+        profit, total, yadrovy, tarasenko, withdrawals = summary(data, selected_restaurant, month)
+        render_partner_details(yadrovy, tarasenko)
+
+        st.divider()
+        render_profit_chart(data, months)
+
+    with tab_archive:
+        st.title("Архив")
+
+        for month in months:
+            month_has_profit = any(get_profit(data, restaurant, month) > 0 for restaurant in RESTAURANTS)
+            month_has_withdrawals = any(len(get_withdrawals(data, restaurant, month)) > 0 for restaurant in RESTAURANTS)
+
+            if not month_has_profit and not month_has_withdrawals and not is_closed_month(month):
+                continue
+
+            st.subheader(month_label(month))
+
+            if is_closed_month(month):
+                st.markdown(
+                    '<div class="closed-badge">Закрытый месяц — распределено полностью</div>',
+                    unsafe_allow_html=True
+                )
+
+            for restaurant in RESTAURANTS:
+                profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
+
+                if profit == 0 and total == 0 and not is_closed_month(month):
+                    continue
+
+                with st.container(border=True):
+                    c1, c2, c3 = st.columns(3)
+                    c1.write(f"**{restaurant}**")
+                    c2.write(f"Прибыль: **{money(profit)}**")
+                    c3.write(f"Выведено: **{money(total)}**")
+
+                    render_partner_details(yadrovy, tarasenko)
+
+                    if withdrawals and not is_closed_month(month):
+                        for row in withdrawals:
+                            st.caption(
+                                f"Дата вывода: {row.get('date', '')} · "
+                                f"Сумма: {money(row.get('amount', 0))} · "
+                                f"{row.get('mode', '')}"
+                            )
+
+    with tab_exit:
+        if st.button("Выйти из кабинета"):
+            st.session_state.user = None
+            st.rerun()
+
+    st.stop()
+
+
+with tab_main:
+    st.title("Главная")
+
+    month = select_month("main_month", months, default_main_month)
+    selected_restaurant = select_restaurant("main_restaurant")
+
+    if is_closed_month(month):
+        st.markdown(
+            '<div class="closed-badge">Закрытый месяц — распределено полностью</div>',
+            unsafe_allow_html=True
+        )
+
+    render_today_payout_panel(data)
+
+    st.subheader("Все заведения за месяц")
+    render_all_restaurant_cards(data, month)
+
+    st.subheader(f"Партнеры — {selected_restaurant}")
+    profit, total, yadrovy, tarasenko, withdrawals = summary(data, selected_restaurant, month)
+    render_partner_details(yadrovy, tarasenko)
+
+    st.divider()
+    render_profit_chart(data, months)
+
+
+with tab_restaurant:
+    st.title("Ресторан")
+    st.caption("Детальный просмотр и ввод данных")
+
+    render_backup_button(data)
+    st.divider()
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+        month = select_month(
+            "restaurant_month",
+            months,
+            default_work_month,
+            label="Месяц прибыли"
+        )
+        st.markdown(
+            '<span class="month-hint">Это месяц, за который распределяется прибыль. Например: в мае можно вывести деньги за апрель.</span>',
+            unsafe_allow_html=True
+        )
+
+    with c2:
+        restaurant = select_restaurant("restaurant_name")
+
+    if is_closed_month(month):
+        st.markdown(
+            '<div class="closed-badge">Закрытый месяц — распределено полностью</div>',
+            unsafe_allow_html=True
+        )
+
+    profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
+
+    st.subheader("Прибыль месяца")
+
+    new_profit = st.number_input(
+        "Утвержденная прибыль",
+        min_value=0,
+        step=10000,
+        value=int(profit)
+    )
+
+    if st.button("Сохранить прибыль"):
+        set_profit(data, restaurant, month, new_profit)
+        save_data(data)
+        st.success("Прибыль сохранена")
+        st.rerun()
+
+    st.divider()
+
+    st.subheader("Добавить вывод")
+
+    c3, c4 = st.columns(2)
+
+    with c3:
+        withdrawal_date = st.date_input("Дата фактического вывода", value=date.today())
+
+    with c4:
+        withdrawal_amount = st.number_input("Сумма вывода", min_value=0, step=10000)
+
+    use_proportions = st.checkbox(
+        "Разделить по пропорциям ресторана",
+        value=True
+    )
+
+    manual_partner = st.selectbox(
+        "Если не по пропорциям — кому зачислить всю сумму",
+        ["Ядровы", "Тарасенко"],
+        disabled=use_proportions
+    )
+
+    if use_proportions:
+        default_mode = "После утверждения прибыли" if profit > 0 else "До утверждения прибыли"
+
+        mode = st.radio(
+            "Режим распределения",
+            ["До утверждения прибыли", "После утверждения прибыли"],
+            index=0 if default_mode == "До утверждения прибыли" else 1
+        )
+    else:
+        mode = f"Вся сумма: {manual_partner}"
+
+    if st.button("Добавить вывод"):
+        if withdrawal_amount <= 0:
+            st.error("Введите сумму вывода")
+        else:
+            if use_proportions:
+                if mode == "До утверждения прибыли":
+                    distribution = {"Ядровы": 50, "Тарасенко": 50}
+                else:
+                    distribution = get_distribution(restaurant, month)
+            else:
+                if manual_partner == "Ядровы":
+                    distribution = {"Ядровы": 100, "Тарасенко": 0}
+                else:
+                    distribution = {"Ядровы": 0, "Тарасенко": 100}
+
+            data["withdrawals"].append({
+                "date": withdrawal_date.strftime("%Y-%m-%d"),
+                "month": month,
+                "restaurant": restaurant,
+                "amount": withdrawal_amount,
+                "mode": mode,
+                "distribution": distribution
+            })
+
+            save_data(data)
+            st.success("Вывод добавлен")
+            st.rerun()
+
+    st.divider()
+
+    st.subheader(f"Партнеры — {restaurant}")
+    render_partner_details(yadrovy, tarasenko)
+
+    st.subheader("Выводы за месяц прибыли")
+
+    if is_closed_month(month):
+        st.info("Этот месяц закрыт: все дивиденды распределены и выведены полностью.")
+    elif not withdrawals:
+        st.info("Выводов пока нет")
+    else:
+        for index, row in enumerate(withdrawals):
+            with st.container(border=True):
+                c5, c6, c7, c8 = st.columns([2, 2, 3, 1])
+
+                c5.write(f"**Дата вывода:** {row['date']}")
+                c6.write(f"**Сумма:** {money(row['amount'])}")
+                c7.write(f"**Режим:** {row.get('mode', '')}")
+
+                if c8.button("Удалить", key=f"delete_month_{index}"):
+                    original_index = data["withdrawals"].index(row)
+                    data["withdrawals"].pop(original_index)
+                    save_data(data)
+                    st.success("Вывод удален")
+                    st.rerun()
+
+
+with tab_archive:
+    st.title("Архив")
+
+    for month in months:
+        month_has_profit = any(get_profit(data, restaurant, month) > 0 for restaurant in RESTAURANTS)
+        month_has_withdrawals = any(len(get_withdrawals(data, restaurant, month)) > 0 for restaurant in RESTAURANTS)
+
+        if not month_has_profit and not month_has_withdrawals and not is_closed_month(month):
+            continue
+
+        st.subheader(month_label(month))
+
+        if is_closed_month(month):
+            st.markdown(
+                '<div class="closed-badge">Закрытый месяц — распределено полностью</div>',
+                unsafe_allow_html=True
+            )
+
+        for restaurant in RESTAURANTS:
+            profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
+
+            if profit == 0 and total == 0 and not is_closed_month(month):
+                continue
+
+            with st.container(border=True):
+                c1, c2, c3 = st.columns(3)
+                c1.write(f"**{restaurant}**")
+                c2.write(f"Прибыль: **{money(profit)}**")
+                c3.write(f"Выведено: **{money(total)}**")
+
+                if withdrawals and not is_closed_month(month):
+                    for row in withdrawals:
+                        st.caption(
+                            f"Дата вывода: {row.get('date', '')} · "
+                            f"Сумма: {money(row.get('amount', 0))} · "
+                            f"{row.get('mode', '')}"
+                        )
+
+
+with tab_exit:
+    if st.button("Выйти из кабинета"):
+        st.session_state.user = None
+        st.rerun()
