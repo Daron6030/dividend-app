@@ -52,9 +52,9 @@ header[data-testid="stHeader"] {display:none !important;}
 }
 
 .block-container {
-    padding-top: 1rem !important;
-    padding-left: 1.1rem !important;
-    padding-right: 1.1rem !important;
+    padding-top:1rem !important;
+    padding-left:1.1rem !important;
+    padding-right:1.1rem !important;
 }
 
 h1,h2,h3,h4,h5,h6,p,label {
@@ -81,17 +81,27 @@ h1,h2,h3,h4,h5,h6,p,label {
     margin-top:4px;
 }
 
-/* вкладки сверху */
+/* Центрируем вкладки */
+div[data-testid="stTabs"] div[role="tablist"] {
+    justify-content:center !important;
+    gap:18px !important;
+}
+
 button[data-baseweb="tab"] {
     font-weight:700 !important;
     color:#111827 !important;
+    font-size:18px !important;
 }
 
 button[data-baseweb="tab"][aria-selected="true"] {
     color:#111827 !important;
 }
 
-/* поля ввода */
+button[data-baseweb="tab"][aria-selected="true"] p {
+    color:#111827 !important;
+}
+
+/* Поля ввода */
 input, textarea {
     background:white !important;
     color:#111827 !important;
@@ -103,7 +113,50 @@ div[data-baseweb="input"] input {
     color:#111827 !important;
 }
 
-/* карточки метрик */
+/* Selectbox */
+div[data-baseweb="select"] > div {
+    background:white !important;
+    color:#111827 !important;
+    border:1px solid #d1d5db !important;
+    border-radius:13px !important;
+}
+
+div[data-baseweb="select"] span {
+    color:#111827 !important;
+}
+
+/* Убираем странный iPhone-курсор/палку в selectbox */
+div[data-baseweb="select"] input {
+    opacity:0 !important;
+    width:0px !important;
+    min-width:0px !important;
+    caret-color:transparent !important;
+}
+
+/* стрелка select */
+div[data-baseweb="select"] svg {
+    color:#c7ccd3 !important;
+}
+
+/* выпадающий список */
+div[data-baseweb="popover"] {
+    background:white !important;
+}
+
+ul[role="listbox"] {
+    background:white !important;
+}
+
+li[role="option"] {
+    background:white !important;
+    color:#111827 !important;
+}
+
+li[role="option"]:hover {
+    background:#f3f4f6 !important;
+}
+
+/* Метрики */
 div[data-testid="metric-container"] {
     background:white;
     border:1px solid #e5e7eb;
@@ -122,7 +175,7 @@ div[data-testid="metric-container"] div {
     font-size:27px !important;
 }
 
-/* кнопки */
+/* Кнопки */
 .stButton > button {
     width:100%;
     border-radius:12px;
@@ -139,12 +192,11 @@ div[data-testid="metric-container"] div {
     border:1px solid #111827;
 }
 
-/* компактные карточки */
 div[data-testid="stVerticalBlockBorderWrapper"] {
     background:white;
 }
 
-@media (max-width: 768px) {
+@media (max-width:768px) {
     .block-container {
         padding-left:1rem !important;
         padding-right:1rem !important;
@@ -163,6 +215,17 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
 
     .app-user {
         font-size:13px;
+    }
+
+    div[data-testid="stTabs"] div[role="tablist"] {
+        justify-content:center !important;
+        gap:12px !important;
+    }
+
+    button[data-baseweb="tab"] {
+        font-size:16px !important;
+        padding-left:4px !important;
+        padding-right:4px !important;
     }
 
     h1 {
@@ -313,67 +376,6 @@ def render_header(user):
     )
 
 
-def month_picker(all_months, current_month, key_prefix):
-    if f"{key_prefix}_month_index" not in st.session_state:
-        st.session_state[f"{key_prefix}_month_index"] = (
-            all_months.index(current_month) if current_month in all_months else 0
-        )
-
-    index = st.session_state[f"{key_prefix}_month_index"]
-
-    c1, c2, c3 = st.columns([1, 3, 1])
-
-    with c1:
-        if st.button("‹", key=f"{key_prefix}_month_prev"):
-            if index < len(all_months) - 1:
-                st.session_state[f"{key_prefix}_month_index"] += 1
-                st.rerun()
-
-    with c2:
-        st.markdown(
-            f"<h3 style='text-align:center; margin-top:8px;'>{month_label(all_months[index])}</h3>",
-            unsafe_allow_html=True
-        )
-
-    with c3:
-        if st.button("›", key=f"{key_prefix}_month_next"):
-            if index > 0:
-                st.session_state[f"{key_prefix}_month_index"] -= 1
-                st.rerun()
-
-    return all_months[st.session_state[f"{key_prefix}_month_index"]]
-
-
-def restaurant_picker(key_prefix):
-    if f"{key_prefix}_restaurant" not in st.session_state:
-        st.session_state[f"{key_prefix}_restaurant"] = list(RESTAURANTS.keys())[0]
-
-    restaurants = list(RESTAURANTS.keys())
-
-    row1 = st.columns(2)
-    row2 = st.columns(2)
-    row3 = st.columns(1)
-
-    layout = [
-        (row1[0], restaurants[0]),
-        (row1[1], restaurants[1]),
-        (row2[0], restaurants[2]),
-        (row2[1], restaurants[3]),
-        (row3[0], restaurants[4]),
-    ]
-
-    for col, name in layout:
-        with col:
-            selected = st.session_state[f"{key_prefix}_restaurant"] == name
-            label = f"● {name}" if selected else name
-
-            if st.button(label, key=f"{key_prefix}_restaurant_{name}"):
-                st.session_state[f"{key_prefix}_restaurant"] = name
-                st.rerun()
-
-    return st.session_state[f"{key_prefix}_restaurant"]
-
-
 def render_admin_card(restaurant, month, profit, total, yadrovy, tarasenko):
     y_accrued, y_withdrawn, y_balance, invest_note = yadrovy
     t_accrued, t_withdrawn, t_balance, _ = tarasenko
@@ -418,6 +420,24 @@ def render_partner_card(restaurant, month, accrued, withdrawn, balance, invest_n
 
         if invest_note > 0:
             st.caption(f"Из них {money(invest_note)} — возврат инвестиций.")
+
+
+def select_month(key, all_months, current_month):
+    return st.selectbox(
+        "Месяц",
+        all_months,
+        index=all_months.index(current_month) if current_month in all_months else 0,
+        format_func=month_label,
+        key=key
+    )
+
+
+def select_restaurant(key):
+    return st.selectbox(
+        "Ресторан",
+        list(RESTAURANTS.keys()),
+        key=key
+    )
 
 
 if "user" not in st.session_state:
@@ -470,11 +490,8 @@ if user["role"] == "partner":
         st.title("Мой кабинет")
         st.caption("Только нужные цифры без лишней информации")
 
-        st.markdown("### Месяц")
-        month = month_picker(all_months, current_month, "partner")
-
-        st.markdown("### Ресторан")
-        restaurant = restaurant_picker("partner")
+        month = select_month("partner_month", all_months, current_month)
+        restaurant = select_restaurant("partner_restaurant")
 
         profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
 
@@ -504,11 +521,13 @@ with tab_main:
     st.title("Главная")
     st.caption("Выберите месяц и ресторан")
 
-    st.markdown("### Месяц")
-    month = month_picker(all_months, current_month, "main")
+    c1, c2 = st.columns(2)
 
-    st.markdown("### Ресторан")
-    restaurant = restaurant_picker("main")
+    with c1:
+        month = select_month("main_month", all_months, current_month)
+
+    with c2:
+        restaurant = select_restaurant("main_restaurant")
 
     profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
 
@@ -519,11 +538,13 @@ with tab_restaurant:
     st.title("Ресторан")
     st.caption("Ввод прибыли и выводов")
 
-    st.markdown("### Месяц")
-    month = month_picker(all_months, current_month, "restaurant")
+    c1, c2 = st.columns(2)
 
-    st.markdown("### Ресторан")
-    restaurant = restaurant_picker("restaurant")
+    with c1:
+        month = select_month("restaurant_month", all_months, current_month)
+
+    with c2:
+        restaurant = select_restaurant("restaurant_name")
 
     profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
 
@@ -556,10 +577,9 @@ with tab_restaurant:
 
     default_mode = "После утверждения прибыли" if profit > 0 else "До утверждения прибыли"
 
-    mode_options = ["До утверждения прибыли", "После утверждения прибыли"]
     mode = st.radio(
         "Режим распределения",
-        mode_options,
+        ["До утверждения прибыли", "После утверждения прибыли"],
         index=0 if default_mode == "До утверждения прибыли" else 1
     )
 
@@ -622,14 +642,19 @@ with tab_archive:
     if not data["withdrawals"]:
         st.info("Выводов пока нет")
     else:
-        st.markdown("### Ресторан")
-        selected_restaurant = restaurant_picker("archive_filter")
+        selected_restaurant = st.selectbox(
+            "Фильтр по ресторану",
+            ["Все"] + list(RESTAURANTS.keys()),
+            key="archive_filter"
+        )
 
         rows = list(enumerate(data["withdrawals"]))
-        rows = [
-            (i, row) for i, row in rows
-            if row["restaurant"] == selected_restaurant
-        ]
+
+        if selected_restaurant != "Все":
+            rows = [
+                (i, row) for i, row in rows
+                if row["restaurant"] == selected_restaurant
+            ]
 
         sorted_rows = sorted(
             rows,
