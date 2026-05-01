@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import os
 from datetime import date
+import altair as alt
 
 st.set_page_config(
     page_title="Dividends Space",
@@ -146,20 +147,22 @@ div[data-testid="metric-container"] div {
     font-size:21px !important;
 }
 
-.stButton > button {
+.stButton > button,
+.stDownloadButton > button {
     width:100%;
     border-radius:12px;
-    background:white;
+    background:white !important;
     color:#111827 !important;
-    border:1px solid #d1d5db;
+    border:1px solid #d1d5db !important;
     font-weight:650;
     padding:10px 12px;
 }
 
-.stButton > button:hover {
-    background:#111827;
+.stButton > button:hover,
+.stDownloadButton > button:hover {
+    background:#111827 !important;
     color:white !important;
-    border:1px solid #111827;
+    border:1px solid #111827 !important;
 }
 
 .cards-grid {
@@ -385,7 +388,10 @@ def normalize_data(data):
                         "restaurant": restaurant,
                         "amount": amount,
                         "mode": "После утверждения прибыли",
-                        "distribution": RESTAURANTS.get(restaurant, {"Ядровы": 50, "Тарасенко": 50})
+                        "distribution": RESTAURANTS.get(
+                            restaurant,
+                            {"Ядровы": 50, "Тарасенко": 50}
+                        )
                     })
         data["withdrawals"] = new_withdrawals
 
@@ -531,6 +537,7 @@ def render_header(user):
 
 def render_backup_button(data):
     backup_data = json.dumps(data, ensure_ascii=False, indent=4)
+
     st.download_button(
         "Скачать резервную копию",
         backup_data,
@@ -543,19 +550,44 @@ def render_profit_chart(data, months):
     chart_months = list(reversed(months[:6]))
 
     rows = []
+
     for month in chart_months:
-        row = {"Месяц": month_label(month)}
         for restaurant in RESTAURANTS:
-            row[restaurant] = get_profit(data, restaurant, month)
-        rows.append(row)
+            rows.append({
+                "Месяц": month_label(month),
+                "Ресторан": restaurant,
+                "Прибыль": get_profit(data, restaurant, month)
+            })
+
+    chart = (
+        alt.Chart(alt.Data(values=rows))
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("Месяц:N", title="Месяц"),
+            y=alt.Y("Прибыль:Q", title="Прибыль"),
+            color=alt.Color("Ресторан:N", title="Ресторан"),
+            tooltip=["Месяц", "Ресторан", "Прибыль"]
+        )
+        .properties(
+            height=260,
+            background="white"
+        )
+        .configure_view(
+            strokeWidth=0
+        )
+        .configure_axis(
+            labelColor="#111827",
+            titleColor="#111827",
+            gridColor="#e5e7eb"
+        )
+        .configure_legend(
+            labelColor="#111827",
+            titleColor="#111827"
+        )
+    )
 
     st.subheader("Динамика прибыли за 6 месяцев")
-    st.line_chart(
-        rows,
-        x="Месяц",
-        y=list(RESTAURANTS.keys()),
-        height=260
-    )
+    st.altair_chart(chart, use_container_width=True)
 
 
 def render_all_restaurant_cards(data, month):
@@ -585,6 +617,10 @@ def render_partner_details(yadrovy, tarasenko):
     y_accrued, y_withdrawn, y_balance, invest_note = yadrovy
     t_accrued, t_withdrawn, t_balance, _ = tarasenko
 
+    y_note = ""
+    if invest_note > 0:
+        y_note = f'<div class="partner-note">Из них {money(invest_note)} — возврат инвестиций.</div>'
+
     st.markdown(
         f'''
 <div class="partner-box">
@@ -594,8 +630,9 @@ def render_partner_details(yadrovy, tarasenko):
 <div><div class="partner-label">Выведено</div><div class="partner-money">{money(y_withdrawn)}</div></div>
 <div><div class="partner-label">Остаток</div><div class="partner-money">{money(y_balance)}</div></div>
 </div>
-{f'<div class="partner-note">Из них {money(invest_note)} — возврат инвестиций.</div>' if invest_note > 0 else ''}
+{y_note}
 </div>
+
 <div class="partner-box">
 <div class="partner-title">Тарасенко</div>
 <div class="partner-row">
@@ -610,6 +647,10 @@ def render_partner_details(yadrovy, tarasenko):
 
 
 def render_partner_card(restaurant, accrued, withdrawn, balance, invest_note=0):
+    note = ""
+    if invest_note > 0:
+        note = f'<div class="partner-note">Из них {money(invest_note)} — возврат инвестиций.</div>'
+
     st.markdown(
         f'''
 <div class="partner-box">
@@ -619,7 +660,7 @@ def render_partner_card(restaurant, accrued, withdrawn, balance, invest_note=0):
 <div><div class="partner-label">Выведено</div><div class="partner-money">{money(withdrawn)}</div></div>
 <div><div class="partner-label">Остаток</div><div class="partner-money">{money(balance)}</div></div>
 </div>
-{f'<div class="partner-note">Из них {money(invest_note)} — возврат инвестиций.</div>' if invest_note > 0 else ''}
+{note}
 </div>
 ''',
         unsafe_allow_html=True
@@ -715,9 +756,6 @@ with tab_main:
     month = select_month("main_month", months)
     selected_restaurant = select_restaurant("main_restaurant")
 
-    render_backup_button(data)
-    render_profit_chart(data, months)
-
     st.subheader("Все заведения за месяц")
     render_all_restaurant_cards(data, month)
 
@@ -725,10 +763,16 @@ with tab_main:
     profit, total, yadrovy, tarasenko, withdrawals = summary(data, selected_restaurant, month)
     render_partner_details(yadrovy, tarasenko)
 
+    st.divider()
+    render_profit_chart(data, months)
+
 
 with tab_restaurant:
     st.title("Ресторан")
     st.caption("Детальный просмотр и ввод данных")
+
+    render_backup_button(data)
+    st.divider()
 
     c1, c2 = st.columns(2)
 
