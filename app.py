@@ -43,161 +43,148 @@ RESTAURANTS = {
 
 st.markdown("""
 <style>
-/* Убираем боковое меню Streamlit */
-section[data-testid="stSidebar"] {
-    display: none !important;
-}
-
-button[title="Open sidebar"],
-button[title="Close sidebar"],
-button[aria-label="Open sidebar"],
-button[aria-label="Close sidebar"] {
-    display: none !important;
-}
-
-/* Убираем верхнюю служебную панель Streamlit */
-header[data-testid="stHeader"] {
-    display: none !important;
-}
+section[data-testid="stSidebar"] {display:none !important;}
+header[data-testid="stHeader"] {display:none !important;}
 
 .stApp {
-    background: #f6f7f9;
-    color: #111827;
+    background:#f6f7f9;
+    color:#111827;
 }
 
-/* Чуть меньше верхний отступ */
 .block-container {
-    padding-top: 1.2rem !important;
+    padding-top: 1rem !important;
 }
 
-/* Текст */
-h1, h2, h3, h4, h5, h6, p, label {
-    color: #111827 !important;
+h1,h2,h3,h4,h5,h6,p,label {
+    color:#111827 !important;
 }
 
-/* Черная верхняя шапка */
 .app-header {
-    background: #111827;
-    border-radius: 22px;
-    padding: 18px;
-    margin-bottom: 24px;
-    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18);
+    background:#111827;
+    border-radius:22px;
+    padding:18px;
+    margin-bottom:12px;
 }
 
 .app-title {
-    color: #ffffff !important;
-    font-size: 22px;
-    font-weight: 800;
-    margin-bottom: 2px;
+    color:white !important;
+    font-size:24px;
+    font-weight:800;
 }
 
 .app-user {
-    color: #d1d5db !important;
-    font-size: 14px;
+    color:#d1d5db !important;
+    font-size:14px;
+    margin-top:4px;
 }
 
-/* Кнопки */
-.stButton > button {
-    width: 100%;
-    border-radius: 13px;
-    background: #ffffff;
-    color: #111827 !important;
-    border: 1px solid #d1d5db;
-    font-weight: 650;
-    padding: 10px 12px;
+.nav-row {
+    display:flex;
+    flex-direction:row;
+    flex-wrap:nowrap;
+    gap:8px;
+    margin-bottom:24px;
+    overflow-x:auto;
 }
 
-.stButton > button:hover {
-    background: #111827;
-    color: #ffffff !important;
-    border: 1px solid #111827;
+.nav-row a {
+    display:block;
+    text-decoration:none !important;
+    background:#111827;
+    color:white !important;
+    padding:10px 14px;
+    border-radius:13px;
+    font-weight:700;
+    font-size:15px;
+    white-space:nowrap;
+    border:1px solid #374151;
 }
 
-/* Кнопки меню в шапке */
-.header-menu button {
-    background: #1f2937 !important;
-    color: #ffffff !important;
-    border: 1px solid #374151 !important;
-    border-radius: 12px !important;
-    font-weight: 700 !important;
-    padding: 9px 10px !important;
+.nav-row a:hover {
+    background:#374151;
+    color:white !important;
 }
 
-.header-menu button:hover {
-    background: #ffffff !important;
-    color: #111827 !important;
-}
-
-/* Поля ввода */
 input, textarea {
-    background-color: #ffffff !important;
-    color: #111827 !important;
-    border: 1px solid #d1d5db !important;
+    background:white !important;
+    color:#111827 !important;
+    border:1px solid #d1d5db !important;
 }
 
-/* Selectbox */
 div[data-baseweb="select"] > div {
-    background-color: #ffffff !important;
-    color: #111827 !important;
-    border: 1px solid #d1d5db !important;
+    background:white !important;
+    color:#111827 !important;
+    border:1px solid #d1d5db !important;
 }
 
 div[data-baseweb="select"] span {
-    color: #111827 !important;
+    color:#111827 !important;
 }
 
-/* Number input */
 div[data-baseweb="input"] input {
-    background-color: #ffffff !important;
-    color: #111827 !important;
+    background:white !important;
+    color:#111827 !important;
 }
 
-/* Метрики */
 div[data-testid="metric-container"] {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    padding: 18px;
-    border-radius: 18px;
-    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+    background:white;
+    border:1px solid #e5e7eb;
+    padding:18px;
+    border-radius:18px;
+    box-shadow:0 8px 22px rgba(15,23,42,0.05);
 }
 
 div[data-testid="metric-container"] label {
-    color: #6b7280 !important;
+    color:#6b7280 !important;
 }
 
 div[data-testid="metric-container"] div {
-    color: #111827 !important;
+    color:#111827 !important;
 }
 
-/* Карточки */
-div[data-testid="stVerticalBlockBorderWrapper"] {
-    background: #ffffff;
+.stButton > button {
+    width:100%;
+    border-radius:12px;
+    background:white;
+    color:#111827 !important;
+    border:1px solid #d1d5db;
+    font-weight:600;
+    padding:10px 16px;
 }
 
-/* Мобильная адаптация */
+.stButton > button:hover {
+    background:#111827;
+    color:white !important;
+    border:1px solid #111827;
+}
+
 @media (max-width: 768px) {
     .block-container {
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-        padding-top: 0.8rem !important;
+        padding-left:1rem !important;
+        padding-right:1rem !important;
     }
 
     .app-header {
-        padding: 16px;
-        border-radius: 20px;
+        padding:16px;
+        border-radius:20px;
     }
 
     .app-title {
-        font-size: 22px;
+        font-size:22px;
     }
 
-    .app-user {
-        font-size: 14px;
+    .nav-row {
+        gap:7px;
+    }
+
+    .nav-row a {
+        font-size:14px;
+        padding:9px 12px;
     }
 
     h1 {
-        font-size: 42px !important;
-        line-height: 1.05 !important;
+        font-size:42px !important;
+        line-height:1.05 !important;
     }
 }
 </style>
@@ -247,12 +234,7 @@ def set_profit(data, restaurant, month, amount):
         if row["restaurant"] == restaurant and row["month"] == month:
             row["amount"] = amount
             return
-
-    data["profits"].append({
-        "restaurant": restaurant,
-        "month": month,
-        "amount": amount
-    })
+    data["profits"].append({"restaurant": restaurant, "month": month, "amount": amount})
 
 
 def get_withdrawals(data, restaurant, month):
@@ -270,11 +252,7 @@ def planned_distribution(restaurant, profit):
 
 
 def fact_distribution(withdrawals):
-    result = {
-        "Ядровы": 0,
-        "Тарасенко": 0,
-        "Возврат инвестиций": 0
-    }
+    result = {"Ядровы": 0, "Тарасенко": 0, "Возврат инвестиций": 0}
 
     for row in withdrawals:
         amount = row["amount"]
@@ -313,7 +291,6 @@ def summary(data, restaurant, month):
 
     yadrovy = partner_amounts("Ядровы", plan, fact)
     tarasenko = partner_amounts("Тарасенко", plan, fact)
-
     total_withdrawn = sum(x["amount"] for x in withdrawals)
 
     return profit, total_withdrawn, yadrovy, tarasenko, withdrawals
@@ -336,47 +313,28 @@ def render_header(user):
     )
 
 
-def render_admin_menu():
-    st.markdown('<div class="header-menu">', unsafe_allow_html=True)
-
-    c1, c2, c3, c4 = st.columns(4)
-
-    with c1:
-        if st.button("Главная"):
-            st.session_state.menu = "Главная"
-            st.rerun()
-
-    with c2:
-        if st.button("Ресторан"):
-            st.session_state.menu = "Ресторан"
-            st.rerun()
-
-    with c3:
-        if st.button("Архив"):
-            st.session_state.menu = "Архив"
-            st.rerun()
-
-    with c4:
-        if st.button("Выйти"):
-            st.session_state.user = None
-            st.session_state.menu = "Главная"
-            st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-def render_partner_menu():
-    st.markdown('<div class="header-menu">', unsafe_allow_html=True)
-
-    c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
-
-    with c4:
-        if st.button("Выйти"):
-            st.session_state.user = None
-            st.session_state.menu = "Главная"
-            st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
+def render_nav(user):
+    if user["role"] == "admin":
+        st.markdown(
+            """
+            <div class="nav-row">
+                <a href="?page=home">Главная</a>
+                <a href="?page=restaurant">Ресторан</a>
+                <a href="?page=archive">Архив</a>
+                <a href="?page=logout">Выйти</a>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            """
+            <div class="nav-row">
+                <a href="?page=logout">Выйти</a>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 
 def render_admin_card(restaurant, month, profit, total, yadrovy, tarasenko):
@@ -425,8 +383,6 @@ def render_partner_card(restaurant, month, accrued, withdrawn, balance, invest_n
             st.caption(f"Из них {money(invest_note)} — возврат инвестиций.")
 
 
-# ---------- SESSION ----------
-
 if "user" not in st.session_state:
     st.session_state.user = None
 
@@ -434,7 +390,23 @@ if "menu" not in st.session_state:
     st.session_state.menu = "Главная"
 
 
-# ---------- LOGIN ----------
+query_page = st.query_params.get("page")
+
+if query_page == "logout":
+    st.session_state.user = None
+    st.session_state.menu = "Главная"
+    st.query_params.clear()
+    st.rerun()
+
+if query_page == "home":
+    st.session_state.menu = "Главная"
+
+if query_page == "restaurant":
+    st.session_state.menu = "Ресторан"
+
+if query_page == "archive":
+    st.session_state.menu = "Архив"
+
 
 if st.session_state.user is None:
     page_header("Dividends Space", "Кабинет распределения дивидендов")
@@ -446,6 +418,7 @@ if st.session_state.user is None:
         if login in USERS and USERS[login]["password"] == password:
             st.session_state.user = USERS[login]
             st.session_state.menu = "Главная"
+            st.query_params.clear()
             st.rerun()
         else:
             st.error("Неверный логин или пароль")
@@ -469,16 +442,9 @@ all_months = sorted(
 )
 
 render_header(user)
-
-if user["role"] == "admin":
-    render_admin_menu()
-else:
-    render_partner_menu()
-
+render_nav(user)
 st.divider()
 
-
-# ---------- PARTNER VIEW ----------
 
 if user["role"] == "partner":
     page_header("Мой кабинет", "Только нужные цифры без лишней информации")
@@ -511,8 +477,6 @@ if user["role"] == "partner":
     st.stop()
 
 
-# ---------- ADMIN VIEW ----------
-
 menu = st.session_state.menu
 
 if menu == "Главная":
@@ -533,14 +497,7 @@ if menu == "Главная":
 
     profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
 
-    render_admin_card(
-        restaurant,
-        month,
-        profit,
-        total,
-        yadrovy,
-        tarasenko
-    )
+    render_admin_card(restaurant, month, profit, total, yadrovy, tarasenko)
 
 
 elif menu == "Ресторан":
@@ -625,14 +582,7 @@ elif menu == "Ресторан":
 
     st.divider()
 
-    render_admin_card(
-        restaurant,
-        month,
-        profit,
-        total,
-        yadrovy,
-        tarasenko
-    )
+    render_admin_card(restaurant, month, profit, total, yadrovy, tarasenko)
 
     st.subheader("Выводы за месяц")
 
