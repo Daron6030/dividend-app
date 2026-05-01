@@ -53,17 +53,21 @@ header[data-testid="stHeader"] {display:none !important;}
 
 .block-container {
     padding-top: 1rem !important;
+    padding-left: 1.2rem !important;
+    padding-right: 1.2rem !important;
 }
 
 h1,h2,h3,h4,h5,h6,p,label {
     color:#111827 !important;
 }
 
+/* верхняя плашка */
 .app-header {
     background:#111827;
     border-radius:22px;
     padding:18px;
-    margin-bottom:12px;
+    margin-bottom:14px;
+    box-shadow:0 10px 28px rgba(15,23,42,0.14);
 }
 
 .app-title {
@@ -78,26 +82,33 @@ h1,h2,h3,h4,h5,h6,p,label {
     margin-top:4px;
 }
 
+/* горизонтальное меню по центру */
 .nav-row {
     display:flex;
     flex-direction:row;
     flex-wrap:nowrap;
-    gap:8px;
-    margin-bottom:24px;
+    justify-content:center;
+    align-items:center;
+    gap:10px;
+    margin-bottom:26px;
     overflow-x:auto;
+    width:100%;
 }
 
 .nav-row a {
-    display:block;
+    display:inline-flex;
+    justify-content:center;
+    align-items:center;
     text-decoration:none !important;
     background:#111827;
     color:white !important;
-    padding:10px 14px;
+    padding:10px 16px;
     border-radius:13px;
     font-weight:700;
     font-size:15px;
     white-space:nowrap;
     border:1px solid #374151;
+    min-width:90px;
 }
 
 .nav-row a:hover {
@@ -105,12 +116,14 @@ h1,h2,h3,h4,h5,h6,p,label {
     color:white !important;
 }
 
+/* поля */
 input, textarea {
     background:white !important;
     color:#111827 !important;
     border:1px solid #d1d5db !important;
 }
 
+/* selectbox */
 div[data-baseweb="select"] > div {
     background:white !important;
     color:#111827 !important;
@@ -121,27 +134,42 @@ div[data-baseweb="select"] span {
     color:#111827 !important;
 }
 
+/* убираем странный вертикальный курсор/символ в selectbox */
+div[data-baseweb="select"] input {
+    caret-color: transparent !important;
+    color: transparent !important;
+}
+
+div[data-baseweb="select"] svg {
+    color:#9ca3af !important;
+}
+
+/* number input */
 div[data-baseweb="input"] input {
     background:white !important;
     color:#111827 !important;
 }
 
+/* метрики компактнее */
 div[data-testid="metric-container"] {
     background:white;
     border:1px solid #e5e7eb;
-    padding:18px;
-    border-radius:18px;
-    box-shadow:0 8px 22px rgba(15,23,42,0.05);
+    padding:14px;
+    border-radius:16px;
+    box-shadow:0 8px 22px rgba(15,23,42,0.04);
 }
 
 div[data-testid="metric-container"] label {
     color:#6b7280 !important;
+    font-size:14px !important;
 }
 
 div[data-testid="metric-container"] div {
     color:#111827 !important;
+    font-size:30px !important;
 }
 
+/* обычные кнопки */
 .stButton > button {
     width:100%;
     border-radius:12px;
@@ -158,33 +186,74 @@ div[data-testid="metric-container"] div {
     border:1px solid #111827;
 }
 
+/* компактные карточки */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background:white;
+}
+
+/* мобильная версия */
 @media (max-width: 768px) {
     .block-container {
         padding-left:1rem !important;
         padding-right:1rem !important;
+        padding-top:0.7rem !important;
     }
 
     .app-header {
         padding:16px;
         border-radius:20px;
+        margin-bottom:12px;
     }
 
     .app-title {
         font-size:22px;
     }
 
+    .app-user {
+        font-size:13px;
+    }
+
     .nav-row {
+        justify-content:center;
         gap:7px;
+        margin-bottom:22px;
     }
 
     .nav-row a {
-        font-size:14px;
-        padding:9px 12px;
+        font-size:13px;
+        padding:9px 10px;
+        min-width:auto;
     }
 
     h1 {
-        font-size:42px !important;
+        font-size:36px !important;
         line-height:1.05 !important;
+        margin-bottom:6px !important;
+    }
+
+    h2 {
+        font-size:30px !important;
+    }
+
+    h3 {
+        font-size:24px !important;
+    }
+
+    div[data-testid="metric-container"] {
+        padding:12px;
+        border-radius:14px;
+    }
+
+    div[data-testid="metric-container"] label {
+        font-size:13px !important;
+    }
+
+    div[data-testid="metric-container"] div {
+        font-size:26px !important;
+    }
+
+    p {
+        font-size:15px !important;
     }
 }
 </style>
