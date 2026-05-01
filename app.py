@@ -84,7 +84,7 @@ h1,h2,h3,h4,h5,h6,p,label {
     text-align:center;
 }
 
-/* Центрируем вкладки */
+/* вкладки */
 div[data-testid="stTabs"] div[role="tablist"] {
     justify-content:center !important;
     gap:18px !important;
@@ -96,15 +96,7 @@ button[data-baseweb="tab"] {
     font-size:18px !important;
 }
 
-button[data-baseweb="tab"][aria-selected="true"] {
-    color:#111827 !important;
-}
-
-button[data-baseweb="tab"][aria-selected="true"] p {
-    color:#111827 !important;
-}
-
-/* Поля ввода */
+/* поля */
 input, textarea {
     background:white !important;
     color:#111827 !important;
@@ -116,7 +108,7 @@ div[data-baseweb="input"] input {
     color:#111827 !important;
 }
 
-/* Selectbox */
+/* selectbox */
 div[data-baseweb="select"] > div {
     background:white !important;
     color:#111827 !important;
@@ -139,26 +131,26 @@ div[data-baseweb="select"] svg {
     color:#c7ccd3 !important;
 }
 
-/* Метрики */
+/* метрики */
 div[data-testid="metric-container"] {
     background:white;
     border:1px solid #e5e7eb;
-    padding:13px;
-    border-radius:16px;
-    box-shadow:0 8px 22px rgba(15,23,42,0.04);
+    padding:11px;
+    border-radius:14px;
+    box-shadow:0 8px 18px rgba(15,23,42,0.04);
 }
 
 div[data-testid="metric-container"] label {
     color:#6b7280 !important;
-    font-size:13px !important;
+    font-size:12px !important;
 }
 
 div[data-testid="metric-container"] div {
     color:#111827 !important;
-    font-size:25px !important;
+    font-size:21px !important;
 }
 
-/* Кнопки */
+/* кнопки */
 .stButton > button {
     width:100%;
     border-radius:12px;
@@ -173,6 +165,42 @@ div[data-testid="metric-container"] div {
     background:#111827;
     color:white !important;
     border:1px solid #111827;
+}
+
+/* компактные карточки */
+.restaurant-card {
+    background:white;
+    border:1px solid #e5e7eb;
+    border-radius:18px;
+    padding:14px;
+    box-shadow:0 8px 18px rgba(15,23,42,0.04);
+    min-height:150px;
+}
+
+.restaurant-title {
+    font-size:17px;
+    font-weight:800;
+    margin-bottom:8px;
+    color:#111827;
+}
+
+.card-label {
+    color:#6b7280;
+    font-size:12px;
+    margin-top:6px;
+}
+
+.card-money {
+    font-size:18px;
+    font-weight:800;
+    color:#111827;
+    line-height:1.15;
+}
+
+.card-small {
+    font-size:13px;
+    color:#4b5563;
+    margin-top:6px;
 }
 
 div[data-testid="stVerticalBlockBorderWrapper"] {
@@ -212,30 +240,25 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     }
 
     h1 {
-        font-size:34px !important;
+        font-size:32px !important;
         line-height:1.05 !important;
         margin-bottom:6px !important;
     }
 
     h2 {
-        font-size:28px !important;
+        font-size:26px !important;
     }
 
     h3 {
-        font-size:23px !important;
-    }
-
-    div[data-testid="metric-container"] {
-        padding:11px;
-        border-radius:14px;
-    }
-
-    div[data-testid="metric-container"] div {
         font-size:22px !important;
     }
 
-    p {
-        font-size:15px !important;
+    div[data-testid="metric-container"] div {
+        font-size:20px !important;
+    }
+
+    .restaurant-card {
+        min-height:auto;
     }
 }
 </style>
@@ -359,12 +382,37 @@ def render_header(user):
     )
 
 
-def render_admin_card(restaurant, month, profit, total, yadrovy, tarasenko):
+def render_small_restaurant_card(restaurant, month, profit, total, yadrovy, tarasenko):
+    y_accrued, y_withdrawn, y_balance, invest_note = yadrovy
+    t_accrued, t_withdrawn, t_balance, _ = tarasenko
+
+    st.markdown(
+        f"""
+        <div class="restaurant-card">
+            <div class="restaurant-title">{restaurant}</div>
+
+            <div class="card-label">Прибыль</div>
+            <div class="card-money">{money(profit)}</div>
+
+            <div class="card-label">Выведено</div>
+            <div class="card-money">{money(total)}</div>
+
+            <div class="card-small">
+                Ядровы остаток: <b>{money(y_balance)}</b><br>
+                Тарасенко остаток: <b>{money(t_balance)}</b>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+def render_partner_details(restaurant, month, profit, total, yadrovy, tarasenko):
     y_accrued, y_withdrawn, y_balance, invest_note = yadrovy
     t_accrued, t_withdrawn, t_balance, _ = tarasenko
 
     with st.container(border=True):
-        st.subheader(restaurant)
+        st.subheader(f"{restaurant} — детали")
         st.caption(month_label(month))
 
         c1, c2, c3 = st.columns(3)
@@ -503,12 +551,40 @@ with tab_main:
     st.title("Главная")
 
     month = select_month("main_month", all_months, current_month)
+    selected_restaurant = select_restaurant("main_restaurant")
 
     st.divider()
 
-    for restaurant in RESTAURANTS:
+    st.subheader("Все заведения за месяц")
+
+    restaurant_names = list(RESTAURANTS.keys())
+    cols = st.columns(5)
+
+    for index, restaurant in enumerate(restaurant_names):
         profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
-        render_admin_card(restaurant, month, profit, total, yadrovy, tarasenko)
+        with cols[index]:
+            render_small_restaurant_card(
+                restaurant,
+                month,
+                profit,
+                total,
+                yadrovy,
+                tarasenko
+            )
+
+    st.divider()
+
+    profit, total, yadrovy, tarasenko, withdrawals = summary(data, selected_restaurant, month)
+
+    st.subheader("По выбранному ресторану")
+    render_partner_details(
+        selected_restaurant,
+        month,
+        profit,
+        total,
+        yadrovy,
+        tarasenko
+    )
 
 
 with tab_restaurant:
@@ -589,7 +665,14 @@ with tab_restaurant:
 
     st.divider()
 
-    render_admin_card(restaurant, month, profit, total, yadrovy, tarasenko)
+    render_partner_details(
+        restaurant,
+        month,
+        profit,
+        total,
+        yadrovy,
+        tarasenko
+    )
 
     st.subheader("Выводы за месяц")
 
