@@ -2,7 +2,6 @@ import streamlit as st
 import json
 import os
 from datetime import date
-import altair as alt
 
 st.set_page_config(
     page_title="Dividends Space",
@@ -438,8 +437,7 @@ def all_months(data):
     for row in data["withdrawals"]:
         months.add(row["month"])
 
-    current = month_key(date.today())
-    months.add(current)
+    months.add(month_key(date.today()))
 
     return sorted(list(months), reverse=True)
 
@@ -550,44 +548,20 @@ def render_profit_chart(data, months):
     chart_months = list(reversed(months[:6]))
 
     rows = []
-
     for month in chart_months:
+        row = {"Месяц": month_label(month)}
         for restaurant in RESTAURANTS:
-            rows.append({
-                "Месяц": month_label(month),
-                "Ресторан": restaurant,
-                "Прибыль": get_profit(data, restaurant, month)
-            })
-
-    chart = (
-        alt.Chart(alt.Data(values=rows))
-        .mark_line(point=True)
-        .encode(
-            x=alt.X("Месяц:N", title="Месяц"),
-            y=alt.Y("Прибыль:Q", title="Прибыль"),
-            color=alt.Color("Ресторан:N", title="Ресторан"),
-            tooltip=["Месяц", "Ресторан", "Прибыль"]
-        )
-        .properties(
-            height=260,
-            background="white"
-        )
-        .configure_view(
-            strokeWidth=0
-        )
-        .configure_axis(
-            labelColor="#111827",
-            titleColor="#111827",
-            gridColor="#e5e7eb"
-        )
-        .configure_legend(
-            labelColor="#111827",
-            titleColor="#111827"
-        )
-    )
+            row[restaurant] = get_profit(data, restaurant, month)
+        rows.append(row)
 
     st.subheader("Динамика прибыли за 6 месяцев")
-    st.altair_chart(chart, use_container_width=True)
+
+    st.line_chart(
+        rows,
+        x="Месяц",
+        y=list(RESTAURANTS.keys()),
+        height=260
+    )
 
 
 def render_all_restaurant_cards(data, month):
