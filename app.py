@@ -228,14 +228,6 @@ div[data-testid="metric-container"] div {
     margin-top:5px;
 }
 
-.today-withdrawn {
-    font-size:10px;
-    color:#16a34a;
-    font-weight:900;
-    line-height:1.25;
-    margin-top:4px;
-}
-
 .partner-box {
     background:white;
     border:1px solid #e5e7eb;
@@ -294,6 +286,55 @@ div[data-testid="metric-container"] div {
     font-size:13px;
     margin-top:-4px;
     margin-bottom:12px;
+}
+
+.today-panel {
+    background:#ecfdf5;
+    border:1px solid #a7f3d0;
+    border-radius:18px;
+    padding:16px;
+    margin-bottom:18px;
+    box-shadow:0 8px 18px rgba(22,163,74,0.08);
+}
+
+.today-title {
+    font-size:22px;
+    font-weight:900;
+    color:#047857;
+    margin-bottom:10px;
+}
+
+.today-grid {
+    display:grid;
+    grid-template-columns:repeat(5, 1fr);
+    gap:8px;
+}
+
+.today-card {
+    background:white;
+    border:1px solid #bbf7d0;
+    border-radius:14px;
+    padding:10px;
+}
+
+.today-restaurant {
+    font-size:13px;
+    font-weight:900;
+    color:#064e3b;
+    margin-bottom:6px;
+}
+
+.today-line {
+    font-size:12px;
+    color:#065f46;
+    line-height:1.35;
+}
+
+.today-total {
+    margin-top:12px;
+    font-size:14px;
+    font-weight:900;
+    color:#047857;
 }
 
 .chart-box {
@@ -374,10 +415,25 @@ div[data-testid="metric-container"] div {
         font-size:10.5px;
     }
 
-    .mini-small,
-    .today-withdrawn {
+    .mini-small {
         font-size:8.5px;
         line-height:1.2;
+    }
+
+    .today-grid {
+        grid-template-columns:repeat(2, 1fr);
+    }
+
+    .today-title {
+        font-size:20px;
+    }
+
+    .today-restaurant {
+        font-size:12px;
+    }
+
+    .today-line {
+        font-size:11px;
     }
 
     .partner-box {
@@ -611,21 +667,50 @@ def get_withdrawals(data, restaurant, month):
     ]
 
 
-def get_today_withdrawn(data, restaurant, month):
-    today = date.today().strftime("%Y-%m-%d")
-    restaurant = normalize_restaurant_name(restaurant)
+def distribution_to_partners(amount, distribution):
+    result = {"Ядровы": 0, "Тарасенко": 0}
 
-    total = 0
+    for name, percent in distribution.items():
+        value = amount * percent / 100
+
+        if name == "Возврат инвестиций":
+            result["Ядровы"] += value
+        elif name in result:
+            result[name] += value
+
+    return result
+
+
+def get_today_payouts(data):
+    today = date.today().strftime("%Y-%m-%d")
+    result = {}
+    totals = {"Ядровы": 0, "Тарасенко": 0}
 
     for row in data["withdrawals"]:
-        if (
-            row["restaurant"] == restaurant
-            and row["month"] == month
-            and row.get("date") == today
-        ):
-            total += row.get("amount", 0)
+        if row.get("date") != today:
+            continue
 
-    return total
+        restaurant = normalize_restaurant_name(row["restaurant"])
+        amount = row.get("amount", 0)
+        mode = row.get("mode", "")
+
+        if mode == "До утверждения прибыли":
+            distribution = {"Ядровы": 50, "Тарасенко": 50}
+        else:
+            distribution = row.get("distribution") or get_distribution(restaurant, row["month"])
+
+        partners = distribution_to_partners(amount, distribution)
+
+        if restaurant not in result:
+            result[restaurant] = {"Ядровы": 0, "Тарасенко": 0}
+
+        result[restaurant]["Ядровы"] += partners["Ядровы"]
+        result[restaurant]["Тарасенко"] += partners["Тарасенко"]
+
+        totals["Ядровы"] += partners["Ядровы"]
+        totals["Тарасенко"] += partners["Тарасенко"]
+
+    return result, totals
 
 
 def planned_distribution(restaurant, month, profit):
@@ -712,6 +797,38 @@ def render_header(user):
 """,
         unsafe_allow_html=True
     )
+
+
+def render_today_payout_panel(data):
+    payouts, totals = get_today_payouts(data)
+
+    if not payouts:
+        return
+
+    html = '''
+<div class="today-panel">
+<div class="today-title">Сегодня к выдаче</div>
+<div class="today-grid">
+'''
+
+    for restaurant, values in payouts.items():
+        html += f'''
+<div class="today-card">
+<div class="today-restaurant">{restaurant}</div>
+<div class="today-line">Ядровы: <b>{money(values["Ядровы"])}</b></div>
+<div class="today-line">Тарасенко: <b>{money(values["Тарасенко"])}</b></div>
+</div>
+'''
+
+    html += f'''
+</div>
+<div class="today-total">
+Итого сегодня — Ядровы: {money(totals["Ядровы"])} · Тарасенко: {money(totals["Тарасенко"])}
+</div>
+</div>
+'''
+
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def render_backup_button(data):
@@ -825,14 +942,6 @@ def render_all_restaurant_cards(data, month):
         y_balance = yadrovy[2]
         t_balance = tarasenko[2]
 
-        today_withdrawn = get_today_withdrawn(data, restaurant, month)
-
-        today_text = ""
-        if today_withdrawn > 0:
-            today_text = f'''
-<div class="today-withdrawn">Сегодня: {money(today_withdrawn)}</div>
-'''
-
         closed_text = ""
         if is_closed_month(month):
             closed_text = '<div class="mini-small"><b>Закрыто</b></div>'
@@ -844,7 +953,6 @@ def render_all_restaurant_cards(data, month):
 <div class="mini-money">{money(profit)}</div>
 <div class="mini-label">Выведено</div>
 <div class="mini-money">{money(total)}</div>
-{today_text}
 <div class="mini-small">Я: <b>{money(y_balance)}</b><br>Т: <b>{money(t_balance)}</b></div>
 {closed_text}
 </div>
@@ -1046,6 +1154,8 @@ with tab_main:
     if is_closed_month(month):
         st.markdown('<div class="closed-badge">Закрытый месяц — распределено полностью</div>', unsafe_allow_html=True)
 
+    render_today_payout_panel(data)
+
     st.subheader("Все заведения за месяц")
     render_all_restaurant_cards(data, month)
 
@@ -1113,22 +1223,45 @@ with tab_restaurant:
     with c4:
         withdrawal_amount = st.number_input("Сумма вывода", min_value=0, step=10000)
 
-    default_mode = "После утверждения прибыли" if profit > 0 else "До утверждения прибыли"
-
-    mode = st.radio(
-        "Режим распределения",
-        ["До утверждения прибыли", "После утверждения прибыли"],
-        index=0 if default_mode == "До утверждения прибыли" else 1
+    use_proportions = st.checkbox(
+        "Разделить по пропорциям ресторана",
+        value=True
     )
+
+    manual_partner = st.selectbox(
+        "Если не по пропорциям — кому зачислить всю сумму",
+        ["Ядровы", "Тарасенко"],
+        disabled=use_proportions
+    )
+
+    if use_proportions:
+        default_mode = "После утверждения прибыли" if profit > 0 else "До утверждения прибыли"
+
+        mode = st.radio(
+            "Режим распределения",
+            ["До утверждения прибыли", "После утверждения прибыли"],
+            index=0 if default_mode == "До утверждения прибыли" else 1
+        )
+    else:
+        mode = f"Вся сумма: {manual_partner}"
 
     if st.button("Добавить вывод"):
         if withdrawal_amount <= 0:
             st.error("Введите сумму вывода")
         else:
-            distribution = {"Ядровы": 50, "Тарасенко": 50}
-
-            if mode == "После утверждения прибыли":
-                distribution = get_distribution(restaurant, month)
+            if use_proportions:
+                if mode == "До утверждения прибыли":
+                    distribution = {"Ядровы": 50, "Тарасенко": 50}
+                else:
+                    distribution = get_distribution(restaurant, month)
+            else:
+                distribution = {
+                    "Ядровы": 100,
+                    "Тарасенко": 0
+                } if manual_partner == "Ядровы" else {
+                    "Ядровы": 0,
+                    "Тарасенко": 100
+                }
 
             data["withdrawals"].append({
                 "date": withdrawal_date.strftime("%Y-%m-%d"),
