@@ -228,6 +228,14 @@ div[data-testid="metric-container"] div {
     margin-top:5px;
 }
 
+.today-withdrawn {
+    font-size:10px;
+    color:#16a34a;
+    font-weight:900;
+    line-height:1.25;
+    margin-top:4px;
+}
+
 .partner-box {
     background:white;
     border:1px solid #e5e7eb;
@@ -278,6 +286,14 @@ div[data-testid="metric-container"] div {
     font-size:12px;
     font-weight:700;
     margin-bottom:8px;
+}
+
+.month-hint {
+    display:block;
+    color:#6b7280;
+    font-size:13px;
+    margin-top:-4px;
+    margin-bottom:12px;
 }
 
 .chart-box {
@@ -358,7 +374,8 @@ div[data-testid="metric-container"] div {
         font-size:10.5px;
     }
 
-    .mini-small {
+    .mini-small,
+    .today-withdrawn {
         font-size:8.5px;
         line-height:1.2;
     }
@@ -396,6 +413,25 @@ def normalize_restaurant_name(name):
 
 def month_key(d):
     return d.strftime("%Y-%m")
+
+
+def add_months(month, offset):
+    year, month_num = map(int, month.split("-"))
+    month_num += offset
+
+    while month_num > 12:
+        month_num -= 12
+        year += 1
+
+    while month_num < 1:
+        month_num += 12
+        year -= 1
+
+    return f"{year}-{month_num:02d}"
+
+
+def previous_month_key(d):
+    return add_months(month_key(d), -1)
 
 
 def month_label(key):
@@ -516,7 +552,25 @@ def all_months(data):
     for row in data["withdrawals"]:
         months.add(row["month"])
 
+    current = month_key(date.today())
+
+    for offset in range(-12, 13):
+        months.add(add_months(current, offset))
+
     return sorted(list(months), reverse=True)
+
+
+def latest_profit_month(data):
+    months_with_profit = set()
+
+    for row in data["profits"]:
+        if row.get("amount", 0) > 0:
+            months_with_profit.add(row["month"])
+
+    if months_with_profit:
+        return sorted(list(months_with_profit), reverse=True)[0]
+
+    return previous_month_key(date.today())
 
 
 def is_closed_month(month):
@@ -555,6 +609,23 @@ def get_withdrawals(data, restaurant, month):
         row for row in data["withdrawals"]
         if row["restaurant"] == restaurant and row["month"] == month
     ]
+
+
+def get_today_withdrawn(data, restaurant, month):
+    today = date.today().strftime("%Y-%m-%d")
+    restaurant = normalize_restaurant_name(restaurant)
+
+    total = 0
+
+    for row in data["withdrawals"]:
+        if (
+            row["restaurant"] == restaurant
+            and row["month"] == month
+            and row.get("date") == today
+        ):
+            total += row.get("amount", 0)
+
+    return total
 
 
 def planned_distribution(restaurant, month, profit):
@@ -655,7 +726,19 @@ def render_backup_button(data):
 
 
 def render_profit_chart(data, months):
-    chart_months = list(reversed(months[:6]))
+    months_with_data = []
+
+    for month in months:
+        total = sum(get_profit(data, restaurant, month) for restaurant in RESTAURANTS)
+        if total > 0:
+            months_with_data.append(month)
+
+    chart_months = list(reversed(months_with_data[:6]))
+
+    if not chart_months:
+        st.info("Пока нет данных для графика.")
+        return
+
     restaurant_colors = {
         "Гончарная": "#111827",
         "Фонтанка": "#2563eb",
@@ -742,6 +825,14 @@ def render_all_restaurant_cards(data, month):
         y_balance = yadrovy[2]
         t_balance = tarasenko[2]
 
+        today_withdrawn = get_today_withdrawn(data, restaurant, month)
+
+        today_text = ""
+        if today_withdrawn > 0:
+            today_text = f'''
+<div class="today-withdrawn">Сегодня: {money(today_withdrawn)}</div>
+'''
+
         closed_text = ""
         if is_closed_month(month):
             closed_text = '<div class="mini-small"><b>Закрыто</b></div>'
@@ -753,6 +844,7 @@ def render_all_restaurant_cards(data, month):
 <div class="mini-money">{money(profit)}</div>
 <div class="mini-label">Выведено</div>
 <div class="mini-money">{money(total)}</div>
+{today_text}
 <div class="mini-small">Я: <b>{money(y_balance)}</b><br>Т: <b>{money(t_balance)}</b></div>
 {closed_text}
 </div>
@@ -816,11 +908,16 @@ def render_partner_card(restaurant, accrued, withdrawn, balance, invest_note=0):
     )
 
 
-def select_month(key, months):
+def select_month(key, months, default_month=None, label="Месяц"):
+    index = 0
+
+    if default_month and default_month in months:
+        index = months.index(default_month)
+
     return st.selectbox(
-        "Месяц",
+        label,
         months,
-        index=0,
+        index=index,
         format_func=month_label,
         key=key
     )
@@ -859,6 +956,9 @@ user = st.session_state.user
 data = load_data()
 months = all_months(data)
 
+default_main_month = latest_profit_month(data)
+default_work_month = previous_month_key(date.today())
+
 render_header(user)
 
 if user["role"] == "admin":
@@ -875,7 +975,7 @@ if user["role"] == "partner":
     with tab_main:
         st.title("Мой кабинет")
 
-        month = select_month("partner_month", months)
+        month = select_month("partner_month", months, default_main_month)
         restaurant = select_restaurant("partner_restaurant")
 
         profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
@@ -900,6 +1000,11 @@ if user["role"] == "partner":
         st.title("Архив")
 
         for month in months:
+            month_has_profit = any(get_profit(data, restaurant, month) > 0 for restaurant in RESTAURANTS)
+
+            if not month_has_profit and not is_closed_month(month):
+                continue
+
             st.subheader(month_label(month))
 
             if is_closed_month(month):
@@ -907,6 +1012,9 @@ if user["role"] == "partner":
 
             for restaurant in RESTAURANTS:
                 profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
+
+                if profit == 0 and not is_closed_month(month):
+                    continue
 
                 if user["partner"] == "Ядровы":
                     accrued, withdrawn, balance, invest = yadrovy
@@ -932,7 +1040,7 @@ if user["role"] == "partner":
 with tab_main:
     st.title("Главная")
 
-    month = select_month("main_month", months)
+    month = select_month("main_month", months, default_main_month)
     selected_restaurant = select_restaurant("main_restaurant")
 
     if is_closed_month(month):
@@ -959,7 +1067,16 @@ with tab_restaurant:
     c1, c2 = st.columns(2)
 
     with c1:
-        month = select_month("restaurant_month", months)
+        month = select_month(
+            "restaurant_month",
+            months,
+            default_work_month,
+            label="Месяц прибыли"
+        )
+        st.markdown(
+            '<span class="month-hint">Это месяц, за который распределяется прибыль. Например: в мае можно вывести деньги за апрель.</span>',
+            unsafe_allow_html=True
+        )
 
     with c2:
         restaurant = select_restaurant("restaurant_name")
@@ -991,7 +1108,7 @@ with tab_restaurant:
     c3, c4 = st.columns(2)
 
     with c3:
-        withdrawal_date = st.date_input("Дата вывода", value=date.today())
+        withdrawal_date = st.date_input("Дата фактического вывода", value=date.today())
 
     with c4:
         withdrawal_amount = st.number_input("Сумма вывода", min_value=0, step=10000)
@@ -1031,7 +1148,7 @@ with tab_restaurant:
     st.subheader(f"Партнеры — {restaurant}")
     render_partner_details(yadrovy, tarasenko)
 
-    st.subheader("Выводы за месяц")
+    st.subheader("Выводы за месяц прибыли")
 
     if is_closed_month(month):
         st.info("Этот месяц закрыт: все дивиденды распределены и выведены полностью.")
@@ -1042,7 +1159,7 @@ with tab_restaurant:
             with st.container(border=True):
                 c5, c6, c7, c8 = st.columns([2, 2, 3, 1])
 
-                c5.write(f"**Дата:** {row['date']}")
+                c5.write(f"**Дата вывода:** {row['date']}")
                 c6.write(f"**Сумма:** {money(row['amount'])}")
                 c7.write(f"**Режим:** {row.get('mode', '')}")
 
@@ -1058,6 +1175,12 @@ with tab_archive:
     st.title("Архив")
 
     for month in months:
+        month_has_profit = any(get_profit(data, restaurant, month) > 0 for restaurant in RESTAURANTS)
+        month_has_withdrawals = any(len(get_withdrawals(data, restaurant, month)) > 0 for restaurant in RESTAURANTS)
+
+        if not month_has_profit and not month_has_withdrawals and not is_closed_month(month):
+            continue
+
         st.subheader(month_label(month))
 
         if is_closed_month(month):
@@ -1066,11 +1189,22 @@ with tab_archive:
         for restaurant in RESTAURANTS:
             profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
 
+            if profit == 0 and total == 0 and not is_closed_month(month):
+                continue
+
             with st.container(border=True):
                 c1, c2, c3 = st.columns(3)
                 c1.write(f"**{restaurant}**")
                 c2.write(f"Прибыль: **{money(profit)}**")
                 c3.write(f"Выведено: **{money(total)}**")
+
+                if withdrawals and not is_closed_month(month):
+                    for row in withdrawals:
+                        st.caption(
+                            f"Дата вывода: {row.get('date', '')} · "
+                            f"Сумма: {money(row.get('amount', 0))} · "
+                            f"{row.get('mode', '')}"
+                        )
 
 
 with tab_exit:
