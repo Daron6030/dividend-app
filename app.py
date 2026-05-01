@@ -798,3 +798,76 @@ with tab_exit:
     if st.button("Выйти из кабинета"):
         st.session_state.user = None
         st.rerun()
+        import streamlit as st
+import json
+import os
+from datetime import date
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Настройка страницы
+st.set_page_config(page_title="Dividends Space", page_icon="💼", layout="wide", initial_sidebar_state="collapsed")
+
+DATA_FILE = "data.json"
+
+# Загрузка данных
+def load_data():
+    if not os.path.exists(DATA_FILE):
+        return {"profits": [], "withdrawals": []}
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+# Сохранение данных
+def save_data(data):
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+# Резервная копия
+def download_backup():
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        data = f.read()
+    st.download_button(
+        label="Скачать резервную копию",
+        data=data,
+        file_name="data_backup.json",
+        mime="application/json"
+    )
+
+# График прибыли за последние 6 месяцев
+def plot_profit_graph(data, months=6):
+    restaurant_names = list(RESTAURANTS.keys())
+    profit_data = {restaurant: [] for restaurant in restaurant_names}
+
+    # Заполняем данные о прибыли за последние N месяцев
+    for restaurant in restaurant_names:
+        for month in range(months):
+            # Для упрощения: генерируем данные
+            # Для реального использования нужно будет заменить на данные из `data["profits"]`
+            profit_data[restaurant].append(np.random.randint(100000, 1000000))  # Пример случайных данных
+
+    # График
+    fig, ax = plt.subplots(figsize=(10, 6))
+    for restaurant, profits in profit_data.items():
+        ax.plot(range(1, months+1), profits, label=restaurant, marker='o')
+
+    ax.set_title("Динамика прибыли по ресторанам", fontsize=16)
+    ax.set_xlabel("Месяцы", fontsize=12)
+    ax.set_ylabel("Прибыль (₽)", fontsize=12)
+    ax.set_xticks(range(1, months+1))
+    ax.set_xticklabels([f"Месяц {i}" for i in range(1, months+1)])
+    ax.legend()
+
+    st.pyplot(fig)
+
+# Основной код
+st.title("Dividends Space")
+
+# Загрузка данных
+data = load_data()
+
+# Резервная копия
+download_backup()
+
+# График прибыли
+st.subheader("График прибыли по ресторанам")
+plot_profit_graph(data)
