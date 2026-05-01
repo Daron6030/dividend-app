@@ -41,6 +41,19 @@ RESTAURANTS = {
     "Науки": {"Ядровы": 50, "Тарасенко": 50},
 }
 
+SPORTIVNAYA_OLD_RULE_UNTIL = "2026-04"
+
+INITIAL_PROFITS = {
+    "2025-10": {"Гончарная": 1400000, "Фонтанка": 490000, "Спортивная": 1280000, "Загородный": 650000, "Науки": 0},
+    "2025-11": {"Гончарная": 619000, "Фонтанка": 430000, "Спортивная": 1000000, "Загородный": 572000, "Науки": 0},
+    "2025-12": {"Гончарная": 470000, "Фонтанка": 490000, "Спортивная": 639000, "Загородный": 194000, "Науки": 0},
+    "2026-01": {"Гончарная": 960000, "Фонтанка": 200000, "Спортивная": 1200000, "Загородный": 385000, "Науки": 0},
+    "2026-02": {"Гончарная": 534000, "Фонтанка": 0, "Спортивная": 437000, "Загородный": 67000, "Науки": 0},
+    "2026-03": {"Гончарная": 1200000, "Фонтанка": 520000, "Спортивная": 1200000, "Загородный": 750000, "Науки": 0},
+}
+
+CLOSED_MONTHS = set(INITIAL_PROFITS.keys())
+
 st.markdown("""
 <style>
 section[data-testid="stSidebar"] {display:none !important;}
@@ -255,6 +268,27 @@ div[data-testid="metric-container"] div {
     margin-top:10px;
 }
 
+.closed-badge {
+    display:inline-block;
+    background:#ecfdf5;
+    color:#047857;
+    border:1px solid #a7f3d0;
+    border-radius:999px;
+    padding:5px 10px;
+    font-size:12px;
+    font-weight:700;
+    margin-bottom:8px;
+}
+
+.chart-box {
+    background:white;
+    border:1px solid #e5e7eb;
+    border-radius:18px;
+    padding:14px;
+    box-shadow:0 8px 18px rgba(15,23,42,0.04);
+    overflow-x:auto;
+}
+
 @media (max-width:768px) {
     .block-container {
         padding-left:0.85rem !important;
@@ -354,63 +388,10 @@ def money(value):
     return f"{value:,.0f}".replace(",", " ") + " ₽"
 
 
-def normalize_data(data):
-    if not isinstance(data, dict):
-        return {"profits": [], "withdrawals": []}
-
-    if "profits" not in data:
-        data["profits"] = []
-
-    if "withdrawals" not in data:
-        data["withdrawals"] = []
-
-    if isinstance(data["profits"], dict):
-        new_profits = []
-        for month, restaurants in data["profits"].items():
-            if isinstance(restaurants, dict):
-                for restaurant, amount in restaurants.items():
-                    new_profits.append({
-                        "restaurant": restaurant,
-                        "month": month,
-                        "amount": amount
-                    })
-        data["profits"] = new_profits
-
-    if isinstance(data["withdrawals"], dict):
-        new_withdrawals = []
-        for month, restaurants in data["withdrawals"].items():
-            if isinstance(restaurants, dict):
-                for restaurant, amount in restaurants.items():
-                    new_withdrawals.append({
-                        "date": month + "-01",
-                        "month": month,
-                        "restaurant": restaurant,
-                        "amount": amount,
-                        "mode": "После утверждения прибыли",
-                        "distribution": RESTAURANTS.get(
-                            restaurant,
-                            {"Ядровы": 50, "Тарасенко": 50}
-                        )
-                    })
-        data["withdrawals"] = new_withdrawals
-
-    return data
-
-
-def load_data():
-    if not os.path.exists(DATA_FILE):
-        return {"profits": [], "withdrawals": []}
-
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        loaded = json.load(f)
-
-    return normalize_data(loaded)
-
-
-def save_data(data):
-    data = normalize_data(data)
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+def normalize_restaurant_name(name):
+    if name == "Наука":
+        return "Науки"
+    return name
 
 
 def month_key(d):
@@ -428,6 +409,104 @@ def month_label(key):
     return f"{names[month]} {year}"
 
 
+def get_distribution(restaurant, month):
+    restaurant = normalize_restaurant_name(restaurant)
+
+    if restaurant == "Спортивная" and month <= SPORTIVNAYA_OLD_RULE_UNTIL:
+        return {
+            "Ядровы": 33.33,
+            "Тарасенко": 33.33,
+            "Возврат инвестиций": 33.34
+        }
+
+    return RESTAURANTS[restaurant]
+
+
+def normalize_data(data):
+    if not isinstance(data, dict):
+        return {"profits": [], "withdrawals": []}
+
+    if "profits" not in data:
+        data["profits"] = []
+
+    if "withdrawals" not in data:
+        data["withdrawals"] = []
+
+    if isinstance(data["profits"], dict):
+        new_profits = []
+        for month, restaurants in data["profits"].items():
+            if isinstance(restaurants, dict):
+                for restaurant, amount in restaurants.items():
+                    new_profits.append({
+                        "restaurant": normalize_restaurant_name(restaurant),
+                        "month": month,
+                        "amount": amount
+                    })
+        data["profits"] = new_profits
+
+    if isinstance(data["withdrawals"], dict):
+        new_withdrawals = []
+        for month, restaurants in data["withdrawals"].items():
+            if isinstance(restaurants, dict):
+                for restaurant, amount in restaurants.items():
+                    restaurant = normalize_restaurant_name(restaurant)
+                    new_withdrawals.append({
+                        "date": month + "-01",
+                        "month": month,
+                        "restaurant": restaurant,
+                        "amount": amount,
+                        "mode": "После утверждения прибыли",
+                        "distribution": get_distribution(restaurant, month)
+                    })
+        data["withdrawals"] = new_withdrawals
+
+    for row in data["profits"]:
+        row["restaurant"] = normalize_restaurant_name(row["restaurant"])
+
+    for row in data["withdrawals"]:
+        row["restaurant"] = normalize_restaurant_name(row["restaurant"])
+
+    return data
+
+
+def apply_initial_profits(data):
+    for month, restaurants in INITIAL_PROFITS.items():
+        for restaurant, amount in restaurants.items():
+            restaurant = normalize_restaurant_name(restaurant)
+            exists = False
+
+            for row in data["profits"]:
+                if row["restaurant"] == restaurant and row["month"] == month:
+                    exists = True
+                    break
+
+            if not exists:
+                data["profits"].append({
+                    "restaurant": restaurant,
+                    "month": month,
+                    "amount": amount
+                })
+
+
+def load_data():
+    if not os.path.exists(DATA_FILE):
+        return {"profits": [], "withdrawals": []}
+
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        loaded = json.load(f)
+
+    data = normalize_data(loaded)
+    apply_initial_profits(data)
+
+    return data
+
+
+def save_data(data):
+    data = normalize_data(data)
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+
 def all_months(data):
     months = set()
 
@@ -437,19 +516,26 @@ def all_months(data):
     for row in data["withdrawals"]:
         months.add(row["month"])
 
-    months.add(month_key(date.today()))
-
     return sorted(list(months), reverse=True)
 
 
+def is_closed_month(month):
+    return month in CLOSED_MONTHS
+
+
 def get_profit(data, restaurant, month):
+    restaurant = normalize_restaurant_name(restaurant)
+
     for row in data["profits"]:
         if row["restaurant"] == restaurant and row["month"] == month:
             return row["amount"]
+
     return 0
 
 
 def set_profit(data, restaurant, month, amount):
+    restaurant = normalize_restaurant_name(restaurant)
+
     for row in data["profits"]:
         if row["restaurant"] == restaurant and row["month"] == month:
             row["amount"] = amount
@@ -463,16 +549,20 @@ def set_profit(data, restaurant, month, amount):
 
 
 def get_withdrawals(data, restaurant, month):
+    restaurant = normalize_restaurant_name(restaurant)
+
     return [
         row for row in data["withdrawals"]
         if row["restaurant"] == restaurant and row["month"] == month
     ]
 
 
-def planned_distribution(restaurant, profit):
+def planned_distribution(restaurant, month, profit):
+    distribution = get_distribution(restaurant, month)
+
     return {
         name: round(profit * percent / 100, 2)
-        for name, percent in RESTAURANTS[restaurant].items()
+        for name, percent in distribution.items()
     }
 
 
@@ -487,10 +577,25 @@ def fact_distribution(withdrawals):
             result["Ядровы"] += amount / 2
             result["Тарасенко"] += amount / 2
         else:
-            for name, percent in row.get("distribution", {}).items():
+            restaurant = row.get("restaurant")
+            month = row.get("month")
+            distribution = row.get("distribution")
+
+            if not distribution and restaurant and month:
+                distribution = get_distribution(restaurant, month)
+
+            for name, percent in distribution.items():
                 result[name] += amount * percent / 100
 
     return result
+
+
+def closed_fact_from_plan(plan):
+    return {
+        "Ядровы": plan.get("Ядровы", 0),
+        "Тарасенко": plan.get("Тарасенко", 0),
+        "Возврат инвестиций": plan.get("Возврат инвестиций", 0),
+    }
 
 
 def partner_amounts(partner, plan, fact):
@@ -511,12 +616,17 @@ def summary(data, restaurant, month):
     profit = get_profit(data, restaurant, month)
     withdrawals = get_withdrawals(data, restaurant, month)
 
-    plan = planned_distribution(restaurant, profit)
-    fact = fact_distribution(withdrawals)
+    plan = planned_distribution(restaurant, month, profit)
+
+    if is_closed_month(month):
+        fact = closed_fact_from_plan(plan)
+        total_withdrawn = profit
+    else:
+        fact = fact_distribution(withdrawals)
+        total_withdrawn = sum(x["amount"] for x in withdrawals)
 
     yadrovy = partner_amounts("Ядровы", plan, fact)
     tarasenko = partner_amounts("Тарасенко", plan, fact)
-    total_withdrawn = sum(x["amount"] for x in withdrawals)
 
     return profit, total_withdrawn, yadrovy, tarasenko, withdrawals
 
@@ -546,22 +656,82 @@ def render_backup_button(data):
 
 def render_profit_chart(data, months):
     chart_months = list(reversed(months[:6]))
+    restaurant_colors = {
+        "Гончарная": "#111827",
+        "Фонтанка": "#2563eb",
+        "Спортивная": "#16a34a",
+        "Загородный": "#f97316",
+        "Науки": "#9333ea",
+    }
 
-    rows = []
+    width = 860
+    height = 280
+    left = 60
+    right = 30
+    top = 28
+    bottom = 52
+
+    values = []
     for month in chart_months:
-        row = {"Месяц": month_label(month)}
         for restaurant in RESTAURANTS:
-            row[restaurant] = get_profit(data, restaurant, month)
-        rows.append(row)
+            values.append(get_profit(data, restaurant, month))
+
+    max_value = max(values) if values else 1
+    if max_value <= 0:
+        max_value = 1
+
+    plot_width = width - left - right
+    plot_height = height - top - bottom
+
+    def x_pos(index):
+        if len(chart_months) == 1:
+            return left + plot_width / 2
+        return left + index * (plot_width / (len(chart_months) - 1))
+
+    def y_pos(value):
+        return top + plot_height - (value / max_value) * plot_height
+
+    svg = f'''
+<div class="chart-box">
+<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" xmlns="http://www.w3.org/2000/svg">
+<rect x="0" y="0" width="{width}" height="{height}" fill="white"/>
+'''
+
+    for i in range(5):
+        y = top + i * (plot_height / 4)
+        value = max_value - i * (max_value / 4)
+        svg += f'<line x1="{left}" y1="{y}" x2="{width-right}" y2="{y}" stroke="#e5e7eb" stroke-width="1"/>'
+        svg += f'<text x="8" y="{y+4}" font-size="11" fill="#6b7280">{int(value/1000)}к</text>'
+
+    for idx, month in enumerate(chart_months):
+        x = x_pos(idx)
+        svg += f'<text x="{x}" y="{height-20}" text-anchor="middle" font-size="11" fill="#6b7280">{month_label(month).split()[0]}</text>'
+
+    for restaurant, color in restaurant_colors.items():
+        points = []
+        for idx, month in enumerate(chart_months):
+            value = get_profit(data, restaurant, month)
+            points.append(f'{x_pos(idx)},{y_pos(value)}')
+
+        if len(points) > 1:
+            svg += f'<polyline points="{" ".join(points)}" fill="none" stroke="{color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
+
+        for idx, month in enumerate(chart_months):
+            value = get_profit(data, restaurant, month)
+            svg += f'<circle cx="{x_pos(idx)}" cy="{y_pos(value)}" r="3.5" fill="{color}"/>'
+
+    legend_x = left
+    legend_y = 14
+
+    for restaurant, color in restaurant_colors.items():
+        svg += f'<circle cx="{legend_x}" cy="{legend_y}" r="4" fill="{color}"/>'
+        svg += f'<text x="{legend_x + 8}" y="{legend_y + 4}" font-size="11" fill="#111827">{restaurant}</text>'
+        legend_x += 130
+
+    svg += '</svg></div>'
 
     st.subheader("Динамика прибыли за 6 месяцев")
-
-    st.line_chart(
-        rows,
-        x="Месяц",
-        y=list(RESTAURANTS.keys()),
-        height=260
-    )
+    st.markdown(svg, unsafe_allow_html=True)
 
 
 def render_all_restaurant_cards(data, month):
@@ -572,6 +742,10 @@ def render_all_restaurant_cards(data, month):
         y_balance = yadrovy[2]
         t_balance = tarasenko[2]
 
+        closed_text = ""
+        if is_closed_month(month):
+            closed_text = '<div class="mini-small"><b>Закрыто</b></div>'
+
         html += f'''
 <div class="mini-card">
 <div class="mini-title">{restaurant}</div>
@@ -580,6 +754,7 @@ def render_all_restaurant_cards(data, month):
 <div class="mini-label">Выведено</div>
 <div class="mini-money">{money(total)}</div>
 <div class="mini-small">Я: <b>{money(y_balance)}</b><br>Т: <b>{money(t_balance)}</b></div>
+{closed_text}
 </div>
 '''
 
@@ -691,7 +866,9 @@ if user["role"] == "admin":
         ["Главная", "Ресторан", "Архив", "Выйти"]
     )
 else:
-    tab_main, tab_exit = st.tabs(["Мой кабинет", "Выйти"])
+    tab_main, tab_archive, tab_exit = st.tabs(
+        ["Мой кабинет", "Архив", "Выйти"]
+    )
 
 
 if user["role"] == "partner":
@@ -708,6 +885,9 @@ if user["role"] == "partner":
         else:
             accrued, withdrawn, balance, invest = tarasenko
 
+        if is_closed_month(month):
+            st.markdown('<div class="closed-badge">Закрытый месяц — распределено полностью</div>', unsafe_allow_html=True)
+
         render_partner_card(
             restaurant,
             accrued,
@@ -715,6 +895,31 @@ if user["role"] == "partner":
             balance,
             invest if user["partner"] == "Ядровы" else 0
         )
+
+    with tab_archive:
+        st.title("Архив")
+
+        for month in months:
+            st.subheader(month_label(month))
+
+            if is_closed_month(month):
+                st.markdown('<div class="closed-badge">Закрытый месяц — распределено полностью</div>', unsafe_allow_html=True)
+
+            for restaurant in RESTAURANTS:
+                profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
+
+                if user["partner"] == "Ядровы":
+                    accrued, withdrawn, balance, invest = yadrovy
+                else:
+                    accrued, withdrawn, balance, invest = tarasenko
+
+                render_partner_card(
+                    restaurant,
+                    accrued,
+                    withdrawn,
+                    balance,
+                    invest if user["partner"] == "Ядровы" else 0
+                )
 
     with tab_exit:
         if st.button("Выйти из кабинета"):
@@ -729,6 +934,9 @@ with tab_main:
 
     month = select_month("main_month", months)
     selected_restaurant = select_restaurant("main_restaurant")
+
+    if is_closed_month(month):
+        st.markdown('<div class="closed-badge">Закрытый месяц — распределено полностью</div>', unsafe_allow_html=True)
 
     st.subheader("Все заведения за месяц")
     render_all_restaurant_cards(data, month)
@@ -755,6 +963,9 @@ with tab_restaurant:
 
     with c2:
         restaurant = select_restaurant("restaurant_name")
+
+    if is_closed_month(month):
+        st.markdown('<div class="closed-badge">Закрытый месяц — распределено полностью</div>', unsafe_allow_html=True)
 
     profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
 
@@ -800,7 +1011,7 @@ with tab_restaurant:
             distribution = {"Ядровы": 50, "Тарасенко": 50}
 
             if mode == "После утверждения прибыли":
-                distribution = RESTAURANTS[restaurant]
+                distribution = get_distribution(restaurant, month)
 
             data["withdrawals"].append({
                 "date": withdrawal_date.strftime("%Y-%m-%d"),
@@ -822,7 +1033,9 @@ with tab_restaurant:
 
     st.subheader("Выводы за месяц")
 
-    if not withdrawals:
+    if is_closed_month(month):
+        st.info("Этот месяц закрыт: все дивиденды распределены и выведены полностью.")
+    elif not withdrawals:
         st.info("Выводов пока нет")
     else:
         for index, row in enumerate(withdrawals):
@@ -843,46 +1056,21 @@ with tab_restaurant:
 
 with tab_archive:
     st.title("Архив")
-    st.caption("Все сохраненные выводы")
 
-    if not data["withdrawals"]:
-        st.info("Выводов пока нет")
-    else:
-        selected_restaurant = st.selectbox(
-            "Фильтр по ресторану",
-            ["Все"] + list(RESTAURANTS.keys()),
-            key="archive_filter"
-        )
+    for month in months:
+        st.subheader(month_label(month))
 
-        rows = list(enumerate(data["withdrawals"]))
+        if is_closed_month(month):
+            st.markdown('<div class="closed-badge">Закрытый месяц — распределено полностью</div>', unsafe_allow_html=True)
 
-        if selected_restaurant != "Все":
-            rows = [
-                (i, row) for i, row in rows
-                if row["restaurant"] == selected_restaurant
-            ]
+        for restaurant in RESTAURANTS:
+            profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
 
-        sorted_rows = sorted(
-            rows,
-            key=lambda item: item[1].get("date", ""),
-            reverse=True
-        )
-
-        for original_index, row in sorted_rows:
             with st.container(border=True):
-                c1, c2, c3, c4 = st.columns([2, 2, 2, 1])
-
-                c1.write(f"**Дата:** {row.get('date', '')}")
-                c2.write(f"**Ресторан:** {row.get('restaurant', '')}")
-                c3.write(f"**Сумма:** {money(row.get('amount', 0))}")
-
-                if c4.button("Удалить", key=f"delete_withdrawal_{original_index}"):
-                    data["withdrawals"].pop(original_index)
-                    save_data(data)
-                    st.success("Вывод удален")
-                    st.rerun()
-
-                st.caption(f"Режим: {row.get('mode', '')}")
+                c1, c2, c3 = st.columns(3)
+                c1.write(f"**{restaurant}**")
+                c2.write(f"Прибыль: **{money(profit)}**")
+                c3.write(f"Выведено: **{money(total)}**")
 
 
 with tab_exit:
