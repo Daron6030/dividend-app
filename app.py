@@ -53,8 +53,8 @@ header[data-testid="stHeader"] {display:none !important;}
 
 .block-container {
     padding-top:1rem !important;
-    padding-left:1.1rem !important;
-    padding-right:1.1rem !important;
+    padding-left:1rem !important;
+    padding-right:1rem !important;
 }
 
 h1,h2,h3,h4,h5,h6,p,label {
@@ -64,8 +64,8 @@ h1,h2,h3,h4,h5,h6,p,label {
 .app-header {
     background:#111827;
     border-radius:22px;
-    padding:20px 18px;
-    margin-bottom:18px;
+    padding:18px;
+    margin-bottom:16px;
     box-shadow:0 10px 28px rgba(15,23,42,0.14);
     text-align:center;
 }
@@ -135,7 +135,7 @@ div[data-baseweb="select"] svg {
 div[data-testid="metric-container"] {
     background:white;
     border:1px solid #e5e7eb;
-    padding:11px;
+    padding:10px;
     border-radius:14px;
     box-shadow:0 8px 18px rgba(15,23,42,0.04);
 }
@@ -167,61 +167,113 @@ div[data-testid="metric-container"] div {
     border:1px solid #111827;
 }
 
-/* компактные карточки */
-.restaurant-card {
+/* 5 компактных карточек */
+.cards-grid {
+    display:grid;
+    grid-template-columns:repeat(5, 1fr);
+    gap:8px;
+    width:100%;
+    margin-top:10px;
+    margin-bottom:18px;
+}
+
+.mini-card {
     background:white;
     border:1px solid #e5e7eb;
-    border-radius:18px;
-    padding:14px;
-    box-shadow:0 8px 18px rgba(15,23,42,0.04);
-    min-height:150px;
+    border-radius:14px;
+    padding:10px 8px;
+    box-shadow:0 6px 16px rgba(15,23,42,0.04);
+    min-height:118px;
+    overflow:hidden;
 }
 
-.restaurant-title {
-    font-size:17px;
+.mini-title {
+    font-size:13px;
     font-weight:800;
-    margin-bottom:8px;
     color:#111827;
+    margin-bottom:7px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
 }
 
-.card-label {
+.mini-label {
     color:#6b7280;
-    font-size:12px;
-    margin-top:6px;
+    font-size:10px;
+    line-height:1.1;
+    margin-top:4px;
 }
 
-.card-money {
-    font-size:18px;
+.mini-money {
+    font-size:13px;
     font-weight:800;
     color:#111827;
     line-height:1.15;
+    white-space:nowrap;
 }
 
-.card-small {
-    font-size:13px;
+.mini-small {
+    font-size:10px;
     color:#4b5563;
-    margin-top:6px;
+    line-height:1.25;
+    margin-top:5px;
 }
 
-div[data-testid="stVerticalBlockBorderWrapper"] {
+.partner-box {
     background:white;
+    border:1px solid #e5e7eb;
+    border-radius:18px;
+    padding:16px;
+    box-shadow:0 8px 18px rgba(15,23,42,0.04);
+    margin-bottom:14px;
+}
+
+.partner-title {
+    font-size:22px;
+    font-weight:800;
+    color:#111827;
+    margin-bottom:10px;
+}
+
+.partner-row {
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:10px;
+}
+
+.partner-label {
+    font-size:12px;
+    color:#6b7280;
+    margin-bottom:4px;
+}
+
+.partner-money {
+    font-size:20px;
+    font-weight:800;
+    color:#111827;
+}
+
+.partner-note {
+    font-size:12px;
+    color:#6b7280;
+    margin-top:10px;
 }
 
 @media (max-width:768px) {
     .block-container {
-        padding-left:1rem !important;
-        padding-right:1rem !important;
+        padding-left:0.85rem !important;
+        padding-right:0.85rem !important;
         padding-top:0.7rem !important;
     }
 
     .app-header {
-        padding:18px 14px;
+        padding:16px 12px;
         border-radius:20px;
-        margin-bottom:16px;
+        margin-bottom:14px;
     }
 
     .app-title {
-        font-size:23px;
+        font-size:22px;
     }
 
     .app-user {
@@ -230,7 +282,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
 
     div[data-testid="stTabs"] div[role="tablist"] {
         justify-content:center !important;
-        gap:12px !important;
+        gap:10px !important;
     }
 
     button[data-baseweb="tab"] {
@@ -240,25 +292,62 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     }
 
     h1 {
-        font-size:32px !important;
+        font-size:31px !important;
         line-height:1.05 !important;
-        margin-bottom:6px !important;
+        margin-bottom:4px !important;
     }
 
     h2 {
-        font-size:26px !important;
+        font-size:24px !important;
     }
 
     h3 {
-        font-size:22px !important;
-    }
-
-    div[data-testid="metric-container"] div {
         font-size:20px !important;
     }
 
-    .restaurant-card {
-        min-height:auto;
+    .cards-grid {
+        gap:5px;
+    }
+
+    .mini-card {
+        padding:8px 5px;
+        border-radius:12px;
+        min-height:108px;
+    }
+
+    .mini-title {
+        font-size:10.5px;
+        margin-bottom:5px;
+    }
+
+    .mini-label {
+        font-size:8.5px;
+    }
+
+    .mini-money {
+        font-size:10.5px;
+    }
+
+    .mini-small {
+        font-size:8.5px;
+        line-height:1.2;
+    }
+
+    .partner-box {
+        padding:13px;
+        border-radius:16px;
+    }
+
+    .partner-title {
+        font-size:20px;
+    }
+
+    .partner-money {
+        font-size:18px;
+    }
+
+    .partner-label {
+        font-size:11px;
     }
 }
 </style>
@@ -373,84 +462,81 @@ def summary(data, restaurant, month):
 def render_header(user):
     st.markdown(
         f"""
-        <div class="app-header">
-            <div class="app-title">Dividends Space</div>
-            <div class="app-user">{user["name"]}</div>
-        </div>
-        """,
+<div class="app-header">
+<div class="app-title">Dividends Space</div>
+<div class="app-user">{user["name"]}</div>
+</div>
+""",
         unsafe_allow_html=True
     )
 
 
-def render_small_restaurant_card(restaurant, month, profit, total, yadrovy, tarasenko):
+def render_all_restaurant_cards(data, month):
+    html = '<div class="cards-grid">'
+
+    for restaurant in RESTAURANTS:
+        profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
+        y_balance = yadrovy[2]
+        t_balance = tarasenko[2]
+
+        html += f'''
+<div class="mini-card">
+<div class="mini-title">{restaurant}</div>
+<div class="mini-label">Прибыль</div>
+<div class="mini-money">{money(profit)}</div>
+<div class="mini-label">Выведено</div>
+<div class="mini-money">{money(total)}</div>
+<div class="mini-small">Я: <b>{money(y_balance)}</b><br>Т: <b>{money(t_balance)}</b></div>
+</div>
+'''
+
+    html += '</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def render_partner_details(yadrovy, tarasenko):
     y_accrued, y_withdrawn, y_balance, invest_note = yadrovy
     t_accrued, t_withdrawn, t_balance, _ = tarasenko
 
     st.markdown(
-        f"""
-        <div class="restaurant-card">
-            <div class="restaurant-title">{restaurant}</div>
-
-            <div class="card-label">Прибыль</div>
-            <div class="card-money">{money(profit)}</div>
-
-            <div class="card-label">Выведено</div>
-            <div class="card-money">{money(total)}</div>
-
-            <div class="card-small">
-                Ядровы остаток: <b>{money(y_balance)}</b><br>
-                Тарасенко остаток: <b>{money(t_balance)}</b>
-            </div>
-        </div>
-        """,
+        f'''
+<div class="partner-box">
+<div class="partner-title">Ядровы</div>
+<div class="partner-row">
+<div><div class="partner-label">Начислено</div><div class="partner-money">{money(y_accrued)}</div></div>
+<div><div class="partner-label">Выведено</div><div class="partner-money">{money(y_withdrawn)}</div></div>
+<div><div class="partner-label">Остаток</div><div class="partner-money">{money(y_balance)}</div></div>
+</div>
+{f'<div class="partner-note">Из них {money(invest_note)} — возврат инвестиций.</div>' if invest_note > 0 else ''}
+</div>
+<div class="partner-box">
+<div class="partner-title">Тарасенко</div>
+<div class="partner-row">
+<div><div class="partner-label">Начислено</div><div class="partner-money">{money(t_accrued)}</div></div>
+<div><div class="partner-label">Выведено</div><div class="partner-money">{money(t_withdrawn)}</div></div>
+<div><div class="partner-label">Остаток</div><div class="partner-money">{money(t_balance)}</div></div>
+</div>
+</div>
+''',
         unsafe_allow_html=True
     )
 
 
-def render_partner_details(restaurant, month, profit, total, yadrovy, tarasenko):
-    y_accrued, y_withdrawn, y_balance, invest_note = yadrovy
-    t_accrued, t_withdrawn, t_balance, _ = tarasenko
-
-    with st.container(border=True):
-        st.subheader(f"{restaurant} — детали")
-        st.caption(month_label(month))
-
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Прибыль", money(profit))
-        c2.metric("Выведено", money(total))
-        c3.metric("Остаток прибыли", money(profit - total))
-
-        st.divider()
-
-        c4, c5 = st.columns(2)
-
-        with c4:
-            st.markdown("### Ядровы")
-            st.metric("Остаток", money(y_balance))
-            st.write(f"Начислено: **{money(y_accrued)}**")
-            st.write(f"Выведено: **{money(y_withdrawn)}**")
-            if invest_note > 0:
-                st.caption(f"Из них {money(invest_note)} — возврат инвестиций.")
-
-        with c5:
-            st.markdown("### Тарасенко")
-            st.metric("Остаток", money(t_balance))
-            st.write(f"Начислено: **{money(t_accrued)}**")
-            st.write(f"Выведено: **{money(t_withdrawn)}**")
-
-
 def render_partner_card(restaurant, month, accrued, withdrawn, balance, invest_note=0):
-    with st.container(border=True):
-        st.subheader(restaurant)
-        st.caption(month_label(month))
-
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Начислено", money(accrued))
-        c2.metric("Выведено", money(withdrawn))
-        c3.metric("Остаток", money(balance))
-
-        if invest_note > 0:
-            st.caption(f"Из них {money(invest_note)} — возврат инвестиций.")
+    st.markdown(
+        f'''
+<div class="partner-box">
+<div class="partner-title">{restaurant}</div>
+<div class="partner-row">
+<div><div class="partner-label">Начислено</div><div class="partner-money">{money(accrued)}</div></div>
+<div><div class="partner-label">Выведено</div><div class="partner-money">{money(withdrawn)}</div></div>
+<div><div class="partner-label">Остаток</div><div class="partner-money">{money(balance)}</div></div>
+</div>
+{f'<div class="partner-note">Из них {money(invest_note)} — возврат инвестиций.</div>' if invest_note > 0 else ''}
+</div>
+''',
+        unsafe_allow_html=True
+    )
 
 
 def select_month(key, all_months, current_month):
@@ -553,38 +639,13 @@ with tab_main:
     month = select_month("main_month", all_months, current_month)
     selected_restaurant = select_restaurant("main_restaurant")
 
-    st.divider()
-
     st.subheader("Все заведения за месяц")
+    render_all_restaurant_cards(data, month)
 
-    restaurant_names = list(RESTAURANTS.keys())
-    cols = st.columns(5)
-
-    for index, restaurant in enumerate(restaurant_names):
-        profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
-        with cols[index]:
-            render_small_restaurant_card(
-                restaurant,
-                month,
-                profit,
-                total,
-                yadrovy,
-                tarasenko
-            )
-
-    st.divider()
+    st.subheader(f"Партнеры — {selected_restaurant}")
 
     profit, total, yadrovy, tarasenko, withdrawals = summary(data, selected_restaurant, month)
-
-    st.subheader("По выбранному ресторану")
-    render_partner_details(
-        selected_restaurant,
-        month,
-        profit,
-        total,
-        yadrovy,
-        tarasenko
-    )
+    render_partner_details(yadrovy, tarasenko)
 
 
 with tab_restaurant:
@@ -665,14 +726,8 @@ with tab_restaurant:
 
     st.divider()
 
-    render_partner_details(
-        restaurant,
-        month,
-        profit,
-        total,
-        yadrovy,
-        tarasenko
-    )
+    st.subheader(f"Партнеры — {restaurant}")
+    render_partner_details(yadrovy, tarasenko)
 
     st.subheader("Выводы за месяц")
 
