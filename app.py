@@ -1,6 +1,8 @@
 import streamlit as st
 import json
 import os
+import urllib.parse
+import urllib.request
 from datetime import date
 
 st.set_page_config(
@@ -141,24 +143,6 @@ div[data-baseweb="select"] svg {
     color:#c7ccd3 !important;
 }
 
-div[data-testid="metric-container"] {
-    background:white;
-    border:1px solid #e5e7eb;
-    padding:10px;
-    border-radius:14px;
-    box-shadow:0 8px 18px rgba(15,23,42,0.04);
-}
-
-div[data-testid="metric-container"] label {
-    color:#6b7280 !important;
-    font-size:12px !important;
-}
-
-div[data-testid="metric-container"] div {
-    color:#111827 !important;
-    font-size:21px !important;
-}
-
 .stButton > button,
 .stDownloadButton > button {
     width:100%;
@@ -192,7 +176,7 @@ div[data-testid="metric-container"] div {
     border-radius:14px;
     padding:10px 8px;
     box-shadow:0 6px 16px rgba(15,23,42,0.04);
-    min-height:118px;
+    min-height:135px;
     overflow:hidden;
 }
 
@@ -226,6 +210,27 @@ div[data-testid="metric-container"] div {
     color:#4b5563;
     line-height:1.25;
     margin-top:5px;
+}
+
+.progress-wrap {
+    width:100%;
+    height:7px;
+    background:#e5e7eb;
+    border-radius:999px;
+    overflow:hidden;
+    margin-top:8px;
+}
+
+.progress-fill {
+    height:100%;
+    background:#22c55e;
+    border-radius:999px;
+}
+
+.progress-text {
+    font-size:8.5px;
+    color:#6b7280;
+    margin-top:3px;
 }
 
 .partner-box {
@@ -337,6 +342,13 @@ div[data-testid="metric-container"] div {
     color:#047857;
 }
 
+.archive-detail {
+    font-size:12px;
+    color:rgba(17,24,39,0.48);
+    line-height:1.45;
+    margin-top:6px;
+}
+
 .chart-box {
     background:white;
     border:1px solid #e5e7eb;
@@ -399,7 +411,7 @@ div[data-testid="metric-container"] div {
     .mini-card {
         padding:8px 5px;
         border-radius:12px;
-        min-height:108px;
+        min-height:132px;
     }
 
     .mini-title {
@@ -458,7 +470,28 @@ div[data-testid="metric-container"] div {
 
 
 def money(value):
-    return f"{value:,.0f}".replace(",", " ") + " ₽"
+    return f"{float(value):,.0f}".replace(",", " ") + " ₽"
+
+
+def format_input_money(value):
+    if value is None or value == "":
+        return ""
+    try:
+        return f"{int(float(value)):,}".replace(",", " ")
+    except Exception:
+        return ""
+
+
+def parse_money(value):
+    if value is None:
+        return 0
+    cleaned = str(value).replace(" ", "").replace("₽", "").replace(",", "").strip()
+    if cleaned == "":
+        return 0
+    try:
+        return int(float(cleaned))
+    except Exception:
+        return 0
 
 
 def normalize_restaurant_name(name):
@@ -548,7 +581,8 @@ def normalize_data(data):
                         "restaurant": restaurant,
                         "amount": amount,
                         "mode": "После утверждения прибыли",
-                        "distribution": get_distribution(restaurant, month)
+                        "distribution": get_distribution(restaurant, month),
+                        "notify": True
                     })
         data["withdrawals"] = new_withdrawals
 
@@ -557,6 +591,8 @@ def normalize_data(data):
 
     for row in data["withdrawals"]:
         row["restaurant"] = normalize_restaurant_name(row["restaurant"])
+        if "notify" not in row:
+            row["notify"] = True
 
     return data
 
@@ -711,6 +747,98 @@ def get_today_payouts(data):
         totals["Тарасенко"] += partners["Тарасенко"]
 
     return result, totals
+
+
+def send_telegram_message(chat_id, text):
+    token = st.secrets.get("TELEGRAM_BOT_TOKEN", "")
+
+    if not token or not chat_id:
+        return False
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+
+    payload = urllib.parse.urlencode({
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML"
+    }).encode("utf-8")
+
+    try:
+        req = urllib.request.Request(url, data=payload, method="POST")
+        urllib.request.urlopen(req, timeout=10)
+        return True
+    except Exception:
+        return False
+
+
+def get_telegram_recipients():
+    recipients = []
+
+    tarasenko_chat_id = st.secrets.get("TELEGRAM_CHAT_ID_TARASENKO", "")
+    yadrovy_chat_id = st.secrets.get("TELEGRAM_CHAT_ID_YADROVY", "")
+    alisa_chat_id = st.secrets.get("TELEGRAM_CHAT_ID_ALISA", "")
+
+    if tarasenko_chat_id:
+        recipients.append(tarasenko_chat_id)
+
+    if yadrovy_chat_id:
+        recipients.append(yadrovy_chat_id)
+
+    if alisa_chat_id:
+        recipients.append(alisa_chat_id)
+
+    return recipients
+
+
+def notify_telegram_withdrawal(restaurant, month, withdrawal_date):
+    recipients = get_telegram_recipients()
+
+    if not recipients:
+        return False
+
+    text = (
+        "💸✨ <b>Dividends Space</b>\n\n"
+        "🎉 Сегодня вывод денег!\n"
+        "Хороший день для приятных поступлений 🙌\n\n"
+        f"🏪 Ресторан: <b>{restaurant}</b>\n"
+        f"📅 Месяц прибыли: <b>{month_label(month)}</b>\n"
+        f"🗓 Дата вывода: <b>{withdrawal_date}</b>\n\n"
+        "📲 Подробности доступны в личном кабинете."
+    )
+
+    ok = True
+
+    for chat_id in recipients:
+        sent = send_telegram_message(chat_id, text)
+        if not sent:
+            ok = False
+
+    return ok
+
+
+def notify_telegram_profit_saved(restaurant, month):
+    recipients = get_telegram_recipients()
+
+    if not recipients:
+        return False
+
+    text = (
+        "📊✨ <b>Dividends Space</b>\n\n"
+        "✅ Чистая прибыль распределена.\n"
+        "Можно заглянуть в личный кабинет и посмотреть обновленные данные 🙌\n\n"
+        f"🏪 Ресторан: <b>{restaurant}</b>\n"
+        f"📅 Месяц прибыли: <b>{month_label(month)}</b>\n\n"
+        "📲 Подробности доступны в личном кабинете."
+    )
+
+    ok = True
+
+    for chat_id in recipients:
+        sent = send_telegram_message(chat_id, text)
+        if not sent:
+            ok = False
+
+    return ok
 
 
 def planned_distribution(restaurant, month, profit):
@@ -942,6 +1070,14 @@ def render_all_restaurant_cards(data, month):
         y_balance = yadrovy[2]
         t_balance = tarasenko[2]
 
+        if profit > 0:
+            progress = min(max(total / profit, 0), 1)
+        else:
+            progress = 0
+
+        progress_percent = round(progress * 100)
+        remaining = max(profit - total, 0)
+
         closed_text = ""
         if is_closed_month(month):
             closed_text = '<div class="mini-small"><b>Закрыто</b></div>'
@@ -954,6 +1090,10 @@ def render_all_restaurant_cards(data, month):
 <div class="mini-label">Выведено</div>
 <div class="mini-money">{money(total)}</div>
 <div class="mini-small">Я: <b>{money(y_balance)}</b><br>Т: <b>{money(t_balance)}</b></div>
+<div class="progress-wrap">
+<div class="progress-fill" style="width:{progress_percent}%;"></div>
+</div>
+<div class="progress-text">Остаток: {money(remaining)}</div>
 {closed_text}
 </div>
 '''
@@ -991,6 +1131,25 @@ def render_partner_details(yadrovy, tarasenko):
 </div>
 </div>
 ''',
+        unsafe_allow_html=True
+    )
+
+
+def render_archive_partner_details(yadrovy, tarasenko):
+    y_accrued, y_withdrawn, y_balance, invest_note = yadrovy
+    t_accrued, t_withdrawn, t_balance, _ = tarasenko
+
+    note = ""
+    if invest_note > 0:
+        note = f"<br>Возврат инвестиций Ядровых: {money(invest_note)}"
+
+    st.markdown(
+        f"""
+<div class="archive-detail">
+Ядровы — начислено: {money(y_accrued)}, выведено: {money(y_withdrawn)}, остаток: {money(y_balance)}{note}<br>
+Тарасенко — начислено: {money(t_accrued)}, выведено: {money(t_withdrawn)}, остаток: {money(t_balance)}
+</div>
+""",
         unsafe_allow_html=True
     )
 
@@ -1134,14 +1293,15 @@ if user["role"] == "partner":
                     c2.write(f"Прибыль: **{money(profit)}**")
                     c3.write(f"Выведено: **{money(total)}**")
 
-                    render_partner_details(yadrovy, tarasenko)
+                    render_archive_partner_details(yadrovy, tarasenko)
 
                     if withdrawals and not is_closed_month(month):
                         for row in withdrawals:
+                            notify_text = "уведомление отправлялось" if row.get("notify", True) else "без уведомления"
                             st.caption(
                                 f"Дата вывода: {row.get('date', '')} · "
                                 f"Сумма: {money(row.get('amount', 0))} · "
-                                f"{row.get('mode', '')}"
+                                f"{row.get('mode', '')} · {notify_text}"
                             )
 
     with tab_exit:
@@ -1211,17 +1371,28 @@ with tab_restaurant:
 
     st.subheader("Прибыль месяца")
 
-    new_profit = st.number_input(
+    profit_input = st.text_input(
         "Утвержденная прибыль",
-        min_value=0,
-        step=10000,
-        value=int(profit)
+        value=format_input_money(profit) if profit > 0 else "",
+        placeholder="Введите сумму"
     )
+
+    new_profit = parse_money(profit_input)
 
     if st.button("Сохранить прибыль"):
         set_profit(data, restaurant, month, new_profit)
         save_data(data)
-        st.success("Прибыль сохранена")
+
+        telegram_ok = notify_telegram_profit_saved(
+            restaurant=restaurant,
+            month=month
+        )
+
+        if telegram_ok:
+            st.success("Прибыль сохранена. Telegram-уведомление отправлено.")
+        else:
+            st.success("Прибыль сохранена. Telegram-уведомление пока не отправлено.")
+
         st.rerun()
 
     st.divider()
@@ -1234,7 +1405,18 @@ with tab_restaurant:
         withdrawal_date = st.date_input("Дата фактического вывода", value=date.today())
 
     with c4:
-        withdrawal_amount = st.number_input("Сумма вывода", min_value=0, step=10000)
+        withdrawal_input = st.text_input(
+            "Сумма вывода",
+            value="",
+            placeholder="Введите сумму"
+        )
+
+    withdrawal_amount = parse_money(withdrawal_input)
+
+    without_notification = st.checkbox(
+        "Без уведомлений",
+        value=False
+    )
 
     use_proportions = st.checkbox(
         "Разделить по пропорциям ресторана",
@@ -1279,11 +1461,26 @@ with tab_restaurant:
                 "restaurant": restaurant,
                 "amount": withdrawal_amount,
                 "mode": mode,
-                "distribution": distribution
+                "distribution": distribution,
+                "notify": not without_notification
             })
 
             save_data(data)
-            st.success("Вывод добавлен")
+
+            if without_notification:
+                st.success("Вывод добавлен без Telegram-уведомления.")
+            else:
+                telegram_ok = notify_telegram_withdrawal(
+                    restaurant=restaurant,
+                    month=month,
+                    withdrawal_date=withdrawal_date.strftime("%Y-%m-%d")
+                )
+
+                if telegram_ok:
+                    st.success("Вывод добавлен. Telegram-уведомление отправлено.")
+                else:
+                    st.success("Вывод добавлен. Telegram-уведомление пока не отправлено.")
+
             st.rerun()
 
     st.divider()
@@ -1302,9 +1499,12 @@ with tab_restaurant:
             with st.container(border=True):
                 c5, c6, c7, c8 = st.columns([2, 2, 3, 1])
 
+                notify_text = "уведомление отправлялось" if row.get("notify", True) else "без уведомления"
+
                 c5.write(f"**Дата вывода:** {row['date']}")
                 c6.write(f"**Сумма:** {money(row['amount'])}")
                 c7.write(f"**Режим:** {row.get('mode', '')}")
+                st.caption(notify_text)
 
                 if c8.button("Удалить", key=f"delete_month_{index}"):
                     original_index = data["withdrawals"].index(row)
@@ -1344,12 +1544,15 @@ with tab_archive:
                 c2.write(f"Прибыль: **{money(profit)}**")
                 c3.write(f"Выведено: **{money(total)}**")
 
+                render_archive_partner_details(yadrovy, tarasenko)
+
                 if withdrawals and not is_closed_month(month):
                     for row in withdrawals:
+                        notify_text = "уведомление отправлялось" if row.get("notify", True) else "без уведомления"
                         st.caption(
                             f"Дата вывода: {row.get('date', '')} · "
                             f"Сумма: {money(row.get('amount', 0))} · "
-                            f"{row.get('mode', '')}"
+                            f"{row.get('mode', '')} · {notify_text}"
                         )
 
 
