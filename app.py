@@ -176,7 +176,7 @@ div[data-baseweb="select"] svg {
     border-radius:14px;
     padding:10px 8px;
     box-shadow:0 6px 16px rgba(15,23,42,0.04);
-    min-height:135px;
+    min-height:145px;
     overflow:hidden;
 }
 
@@ -205,20 +205,27 @@ div[data-baseweb="select"] svg {
     white-space:nowrap;
 }
 
-.mini-small {
-    font-size:10px;
-    color:#4b5563;
-    line-height:1.25;
+.partner-progress-row {
+    display:grid;
+    grid-template-columns:14px 1fr;
+    align-items:center;
+    gap:4px;
     margin-top:5px;
 }
 
+.partner-letter {
+    font-size:10px;
+    font-weight:900;
+    color:#4b5563;
+}
+
 .progress-wrap {
+    position:relative;
     width:100%;
-    height:7px;
+    height:16px;
     background:#e5e7eb;
     border-radius:999px;
     overflow:hidden;
-    margin-top:8px;
 }
 
 .progress-fill {
@@ -227,10 +234,23 @@ div[data-baseweb="select"] svg {
     border-radius:999px;
 }
 
-.progress-text {
+.progress-inside {
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
     font-size:8.5px;
-    color:#6b7280;
-    margin-top:3px;
+    font-weight:800;
+    color:#111827;
+    white-space:nowrap;
+}
+
+.mini-small {
+    font-size:10px;
+    color:#4b5563;
+    line-height:1.25;
+    margin-top:5px;
 }
 
 .partner-box {
@@ -411,7 +431,7 @@ div[data-baseweb="select"] svg {
     .mini-card {
         padding:8px 5px;
         border-radius:12px;
-        min-height:132px;
+        min-height:138px;
     }
 
     .mini-title {
@@ -427,9 +447,16 @@ div[data-baseweb="select"] svg {
         font-size:10.5px;
     }
 
-    .mini-small {
+    .partner-letter {
         font-size:8.5px;
-        line-height:1.2;
+    }
+
+    .progress-wrap {
+        height:14px;
+    }
+
+    .progress-inside {
+        font-size:7.2px;
     }
 
     .today-grid {
@@ -790,7 +817,7 @@ def get_telegram_recipients():
     return recipients
 
 
-def notify_telegram_withdrawal(restaurant, month, withdrawal_date):
+def notify_telegram_withdrawal(restaurant, month):
     recipients = get_telegram_recipients()
 
     if not recipients:
@@ -801,8 +828,7 @@ def notify_telegram_withdrawal(restaurant, month, withdrawal_date):
         "🎉 Сегодня вывод денег!\n"
         "Хороший день для приятных поступлений 🙌\n\n"
         f"🏪 Ресторан: <b>{restaurant}</b>\n"
-        f"📅 Месяц прибыли: <b>{month_label(month)}</b>\n"
-        f"🗓 Дата вывода: <b>{withdrawal_date}</b>\n\n"
+        f"📅 Месяц прибыли: <b>{month_label(month)}</b>\n\n"
         "📲 Подробности доступны в личном кабинете."
     )
 
@@ -1062,21 +1088,33 @@ def render_profit_chart(data, months):
     st.markdown(svg, unsafe_allow_html=True)
 
 
+def render_partner_progress(letter, accrued, withdrawn, balance):
+    if accrued > 0:
+        progress = min(max(withdrawn / accrued, 0), 1)
+    else:
+        progress = 0
+
+    progress_percent = round(progress * 100)
+
+    return f'''
+<div class="partner-progress-row">
+<div class="partner-letter">{letter}</div>
+<div class="progress-wrap">
+<div class="progress-fill" style="width:{progress_percent}%;"></div>
+<div class="progress-inside">{money(balance)}</div>
+</div>
+</div>
+'''
+
+
 def render_all_restaurant_cards(data, month):
     html = '<div class="cards-grid">'
 
     for restaurant in RESTAURANTS:
         profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
-        y_balance = yadrovy[2]
-        t_balance = tarasenko[2]
 
-        if profit > 0:
-            progress = min(max(total / profit, 0), 1)
-        else:
-            progress = 0
-
-        progress_percent = round(progress * 100)
-        remaining = max(profit - total, 0)
+        y_accrued, y_withdrawn, y_balance, y_invest = yadrovy
+        t_accrued, t_withdrawn, t_balance, t_invest = tarasenko
 
         closed_text = ""
         if is_closed_month(month):
@@ -1089,11 +1127,8 @@ def render_all_restaurant_cards(data, month):
 <div class="mini-money">{money(profit)}</div>
 <div class="mini-label">Выведено</div>
 <div class="mini-money">{money(total)}</div>
-<div class="mini-small">Я: <b>{money(y_balance)}</b><br>Т: <b>{money(t_balance)}</b></div>
-<div class="progress-wrap">
-<div class="progress-fill" style="width:{progress_percent}%;"></div>
-</div>
-<div class="progress-text">Остаток: {money(remaining)}</div>
+{render_partner_progress("Я", y_accrued, y_withdrawn, y_balance)}
+{render_partner_progress("Т", t_accrued, t_withdrawn, t_balance)}
 {closed_text}
 </div>
 '''
@@ -1374,7 +1409,7 @@ with tab_restaurant:
     profit_input = st.text_input(
         "Утвержденная прибыль",
         value=format_input_money(profit) if profit > 0 else "",
-        placeholder="Введите сумму"
+        placeholder="например 1 000 000"
     )
 
     new_profit = parse_money(profit_input)
@@ -1408,7 +1443,7 @@ with tab_restaurant:
         withdrawal_input = st.text_input(
             "Сумма вывода",
             value="",
-            placeholder="Введите сумму"
+            placeholder="например 200 000"
         )
 
     withdrawal_amount = parse_money(withdrawal_input)
@@ -1472,8 +1507,7 @@ with tab_restaurant:
             else:
                 telegram_ok = notify_telegram_withdrawal(
                     restaurant=restaurant,
-                    month=month,
-                    withdrawal_date=withdrawal_date.strftime("%Y-%m-%d")
+                    month=month
                 )
 
                 if telegram_ok:
