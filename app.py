@@ -15,24 +15,9 @@ st.set_page_config(
 DATA_FILE = "data.json"
 
 USERS = {
-    "Daron6030": {
-        "password": "Daron6030?",
-        "role": "admin",
-        "name": "Тарасенко Богдан",
-        "partner": "Тарасенко",
-    },
-    "Iadrov": {
-        "password": "181216",
-        "role": "partner",
-        "name": "Ядровы",
-        "partner": "Ядровы",
-    },
-    "Alisa": {
-        "password": "669933",
-        "role": "partner",
-        "name": "Тарасенко Алиса",
-        "partner": "Тарасенко",
-    },
+    "Daron6030": {"password": "Daron6030?", "role": "admin", "name": "Тарасенко Богдан", "partner": "Тарасенко"},
+    "Iadrov": {"password": "181216", "role": "partner", "name": "Ядровы", "partner": "Ядровы"},
+    "Alisa": {"password": "669933", "role": "partner", "name": "Тарасенко Алиса", "partner": "Тарасенко"},
 }
 
 RESTAURANTS = {
@@ -61,38 +46,93 @@ st.markdown("""
 section[data-testid="stSidebar"] {display:none !important;}
 header[data-testid="stHeader"] {display:none !important;}
 
+:root {
+    --bg:#f3f5f8;
+    --card:#ffffff;
+    --text:#111827;
+    --muted:#6b7280;
+    --soft:#e5e7eb;
+    --green:#22c55e;
+    --green-dark:#047857;
+    --dark:#0f172a;
+    --blue:#2563eb;
+    --shadow:0 18px 45px rgba(15,23,42,0.08);
+    --shadow-soft:0 10px 25px rgba(15,23,42,0.055);
+}
+
 .stApp {
-    background:#f6f7f9;
-    color:#111827;
+    background:
+        radial-gradient(circle at top left, rgba(37,99,235,0.10), transparent 34%),
+        radial-gradient(circle at top right, rgba(34,197,94,0.10), transparent 30%),
+        var(--bg);
+    color:var(--text);
 }
 
 .block-container {
+    max-width:1180px;
     padding-top:1rem !important;
     padding-left:1rem !important;
     padding-right:1rem !important;
 }
 
 h1,h2,h3,h4,h5,h6,p,label {
-    color:#111827 !important;
+    color:var(--text) !important;
+}
+
+h1 {
+    font-weight:900 !important;
+    letter-spacing:-0.03em !important;
+}
+
+h2,h3 {
+    font-weight:850 !important;
+    letter-spacing:-0.02em !important;
 }
 
 .app-header {
-    background:#111827;
-    border-radius:22px;
-    padding:18px;
-    margin-bottom:16px;
-    box-shadow:0 10px 28px rgba(15,23,42,0.14);
+    position:relative;
+    overflow:hidden;
+    background:linear-gradient(135deg, #0f172a 0%, #111827 48%, #052e2b 100%);
+    border-radius:30px;
+    padding:24px 20px;
+    margin-bottom:18px;
+    box-shadow:0 22px 60px rgba(15,23,42,0.24);
     text-align:center;
+}
+
+.app-header:before {
+    content:"";
+    position:absolute;
+    width:220px;
+    height:220px;
+    background:rgba(34,197,94,0.16);
+    border-radius:999px;
+    top:-120px;
+    right:-70px;
+}
+
+.app-header:after {
+    content:"";
+    position:absolute;
+    width:180px;
+    height:180px;
+    background:rgba(59,130,246,0.16);
+    border-radius:999px;
+    bottom:-110px;
+    left:-60px;
 }
 
 .app-title {
+    position:relative;
     color:white !important;
-    font-size:24px;
-    font-weight:800;
+    font-size:28px;
+    font-weight:950;
     text-align:center;
+    letter-spacing:-0.04em;
 }
 
 .app-user {
+    position:relative;
     color:#d1d5db !important;
     font-size:14px;
     margin-top:6px;
@@ -101,35 +141,50 @@ h1,h2,h3,h4,h5,h6,p,label {
 
 div[data-testid="stTabs"] div[role="tablist"] {
     justify-content:center !important;
-    gap:18px !important;
+    gap:8px !important;
+    background:rgba(255,255,255,0.78);
+    border:1px solid rgba(229,231,235,0.9);
+    border-radius:22px;
+    padding:6px;
+    box-shadow:var(--shadow-soft);
+    margin-bottom:14px;
 }
 
 button[data-baseweb="tab"] {
-    font-weight:700 !important;
-    color:#111827 !important;
-    font-size:18px !important;
+    border-radius:16px !important;
+    font-weight:850 !important;
+    color:var(--text) !important;
+    font-size:17px !important;
+    padding:8px 14px !important;
+}
+
+button[data-baseweb="tab"][aria-selected="true"] {
+    background:#111827 !important;
+    color:white !important;
 }
 
 input, textarea {
     background:white !important;
-    color:#111827 !important;
+    color:var(--text) !important;
     border:1px solid #d1d5db !important;
+    border-radius:16px !important;
 }
 
 div[data-baseweb="input"] input {
     background:white !important;
-    color:#111827 !important;
+    color:var(--text) !important;
 }
 
 div[data-baseweb="select"] > div {
     background:white !important;
-    color:#111827 !important;
+    color:var(--text) !important;
     border:1px solid #d1d5db !important;
-    border-radius:13px !important;
+    border-radius:16px !important;
+    box-shadow:0 6px 14px rgba(15,23,42,0.04);
 }
 
 div[data-baseweb="select"] span {
-    color:#111827 !important;
+    color:var(--text) !important;
 }
 
 div[data-baseweb="select"] input {
@@ -140,97 +195,112 @@ div[data-baseweb="select"] input {
 }
 
 div[data-baseweb="select"] svg {
-    color:#c7ccd3 !important;
+    color:#9ca3af !important;
 }
 
 .stButton > button,
 .stDownloadButton > button {
     width:100%;
-    border-radius:12px;
-    background:white !important;
-    color:#111827 !important;
-    border:1px solid #d1d5db !important;
-    font-weight:650;
-    padding:10px 12px;
+    border-radius:16px;
+    background:#111827 !important;
+    color:white !important;
+    border:1px solid #111827 !important;
+    font-weight:850;
+    padding:11px 14px;
+    box-shadow:0 10px 24px rgba(15,23,42,0.12);
 }
 
 .stButton > button:hover,
 .stDownloadButton > button:hover {
-    background:#111827 !important;
-    color:white !important;
-    border:1px solid #111827 !important;
+    background:#22c55e !important;
+    color:#052e16 !important;
+    border:1px solid #22c55e !important;
 }
 
 .cards-grid {
     display:grid;
     grid-template-columns:repeat(5, 1fr);
-    gap:8px;
+    gap:10px;
     width:100%;
     margin-top:10px;
-    margin-bottom:18px;
+    margin-bottom:20px;
 }
 
 .mini-card {
-    background:white;
-    border:1px solid #e5e7eb;
-    border-radius:14px;
-    padding:10px 8px;
-    box-shadow:0 6px 16px rgba(15,23,42,0.04);
-    min-height:145px;
+    position:relative;
+    background:rgba(255,255,255,0.92);
+    border:1px solid rgba(229,231,235,0.9);
+    border-radius:22px;
+    padding:13px 10px;
+    box-shadow:var(--shadow-soft);
+    min-height:158px;
     overflow:hidden;
+}
+
+.mini-card:before {
+    content:"";
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    height:4px;
+    background:linear-gradient(90deg, #22c55e, #2563eb);
 }
 
 .mini-title {
-    font-size:13px;
-    font-weight:800;
-    color:#111827;
-    margin-bottom:7px;
+    font-size:14px;
+    font-weight:950;
+    color:var(--text);
+    margin-bottom:8px;
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
+    letter-spacing:-0.02em;
 }
 
 .mini-label {
-    color:#6b7280;
+    color:var(--muted);
     font-size:10px;
     line-height:1.1;
-    margin-top:4px;
+    margin-top:5px;
+    font-weight:700;
 }
 
 .mini-money {
-    font-size:13px;
-    font-weight:800;
-    color:#111827;
+    font-size:14px;
+    font-weight:950;
+    color:var(--text);
     line-height:1.15;
     white-space:nowrap;
 }
 
 .partner-progress-row {
     display:grid;
-    grid-template-columns:14px 1fr;
+    grid-template-columns:16px 1fr;
     align-items:center;
-    gap:4px;
-    margin-top:5px;
+    gap:5px;
+    margin-top:6px;
 }
 
 .partner-letter {
-    font-size:10px;
-    font-weight:900;
-    color:#4b5563;
+    font-size:11px;
+    font-weight:950;
+    color:#374151;
 }
 
 .progress-wrap {
     position:relative;
     width:100%;
-    height:16px;
-    background:#e5e7eb;
+    height:18px;
+    background:#eef2f7;
     border-radius:999px;
     overflow:hidden;
+    border:1px solid rgba(229,231,235,0.9);
 }
 
 .progress-fill {
     height:100%;
-    background:#22c55e;
+    background:linear-gradient(90deg, #86efac, #22c55e);
     border-radius:999px;
 }
 
@@ -241,8 +311,8 @@ div[data-baseweb="select"] svg {
     align-items:center;
     justify-content:center;
     font-size:8.5px;
-    font-weight:800;
-    color:#111827;
+    font-weight:950;
+    color:#0f172a;
     white-space:nowrap;
 }
 
@@ -254,19 +324,20 @@ div[data-baseweb="select"] svg {
 }
 
 .partner-box {
-    background:white;
-    border:1px solid #e5e7eb;
-    border-radius:18px;
-    padding:16px;
-    box-shadow:0 8px 18px rgba(15,23,42,0.04);
+    background:rgba(255,255,255,0.94);
+    border:1px solid rgba(229,231,235,0.95);
+    border-radius:24px;
+    padding:18px;
+    box-shadow:var(--shadow-soft);
     margin-bottom:14px;
 }
 
 .partner-title {
-    font-size:22px;
-    font-weight:800;
-    color:#111827;
-    margin-bottom:10px;
+    font-size:23px;
+    font-weight:950;
+    color:var(--text);
+    margin-bottom:12px;
+    letter-spacing:-0.03em;
 }
 
 .partner-row {
@@ -275,21 +346,29 @@ div[data-baseweb="select"] svg {
     gap:10px;
 }
 
+.partner-row > div {
+    background:#f8fafc;
+    border:1px solid #eef2f7;
+    border-radius:16px;
+    padding:10px;
+}
+
 .partner-label {
     font-size:12px;
-    color:#6b7280;
+    color:var(--muted);
     margin-bottom:4px;
+    font-weight:750;
 }
 
 .partner-money {
     font-size:20px;
-    font-weight:800;
-    color:#111827;
+    font-weight:950;
+    color:var(--text);
 }
 
 .partner-note {
     font-size:12px;
-    color:#6b7280;
+    color:var(--muted);
     margin-top:10px;
 }
 
@@ -299,82 +378,83 @@ div[data-baseweb="select"] svg {
     color:#047857;
     border:1px solid #a7f3d0;
     border-radius:999px;
-    padding:5px 10px;
+    padding:6px 12px;
     font-size:12px;
-    font-weight:700;
+    font-weight:850;
     margin-bottom:8px;
 }
 
 .month-hint {
     display:block;
-    color:#6b7280;
+    color:var(--muted);
     font-size:13px;
     margin-top:-4px;
     margin-bottom:12px;
 }
 
 .today-panel {
-    background:#ecfdf5;
+    background:linear-gradient(135deg, #ecfdf5, #f0fdf4);
     border:1px solid #a7f3d0;
-    border-radius:18px;
-    padding:16px;
-    margin-bottom:18px;
-    box-shadow:0 8px 18px rgba(22,163,74,0.08);
+    border-radius:24px;
+    padding:18px;
+    margin-bottom:20px;
+    box-shadow:0 16px 35px rgba(22,163,74,0.10);
 }
 
 .today-title {
-    font-size:22px;
-    font-weight:900;
+    font-size:23px;
+    font-weight:950;
     color:#047857;
-    margin-bottom:10px;
+    margin-bottom:12px;
+    letter-spacing:-0.03em;
 }
 
 .today-grid {
     display:grid;
     grid-template-columns:repeat(5, 1fr);
-    gap:8px;
+    gap:10px;
 }
 
 .today-card {
     background:white;
     border:1px solid #bbf7d0;
-    border-radius:14px;
-    padding:10px;
+    border-radius:18px;
+    padding:12px;
 }
 
 .today-restaurant {
-    font-size:13px;
-    font-weight:900;
+    font-size:14px;
+    font-weight:950;
     color:#064e3b;
-    margin-bottom:6px;
+    margin-bottom:7px;
 }
 
 .today-line {
     font-size:12px;
     color:#065f46;
-    line-height:1.35;
+    line-height:1.45;
 }
 
 .today-total {
-    margin-top:12px;
+    margin-top:14px;
     font-size:14px;
-    font-weight:900;
+    font-weight:950;
     color:#047857;
 }
 
 .archive-detail {
     font-size:12px;
-    color:rgba(17,24,39,0.48);
-    line-height:1.45;
-    margin-top:6px;
+    color:rgba(17,24,39,0.50);
+    line-height:1.5;
+    margin-top:8px;
 }
 
 .chart-box {
     background:white;
     border:1px solid #e5e7eb;
-    border-radius:18px;
-    padding:14px;
-    box-shadow:0 8px 18px rgba(15,23,42,0.04);
+    border-radius:24px;
+    padding:16px;
+    box-shadow:var(--shadow-soft);
     overflow-x:auto;
 }
 
@@ -386,13 +466,13 @@ div[data-baseweb="select"] svg {
     }
 
     .app-header {
-        padding:16px 12px;
-        border-radius:20px;
+        padding:18px 12px;
+        border-radius:24px;
         margin-bottom:14px;
     }
 
     .app-title {
-        font-size:22px;
+        font-size:23px;
     }
 
     .app-user {
@@ -401,23 +481,25 @@ div[data-baseweb="select"] svg {
 
     div[data-testid="stTabs"] div[role="tablist"] {
         justify-content:center !important;
-        gap:10px !important;
+        gap:6px !important;
+        border-radius:18px;
+        padding:5px;
     }
 
     button[data-baseweb="tab"] {
-        font-size:16px !important;
-        padding-left:4px !important;
-        padding-right:4px !important;
+        font-size:15px !important;
+        padding-left:7px !important;
+        padding-right:7px !important;
     }
 
     h1 {
-        font-size:31px !important;
+        font-size:30px !important;
         line-height:1.05 !important;
         margin-bottom:4px !important;
     }
 
     h2 {
-        font-size:24px !important;
+        font-size:23px !important;
     }
 
     h3 {
@@ -425,18 +507,18 @@ div[data-baseweb="select"] svg {
     }
 
     .cards-grid {
-        gap:5px;
+        gap:6px;
     }
 
     .mini-card {
-        padding:8px 5px;
-        border-radius:12px;
-        min-height:138px;
+        padding:9px 5px;
+        border-radius:16px;
+        min-height:145px;
     }
 
     .mini-title {
-        font-size:10.5px;
-        margin-bottom:5px;
+        font-size:10.8px;
+        margin-bottom:6px;
     }
 
     .mini-label {
@@ -447,16 +529,21 @@ div[data-baseweb="select"] svg {
         font-size:10.5px;
     }
 
+    .partner-progress-row {
+        grid-template-columns:12px 1fr;
+        gap:3px;
+    }
+
     .partner-letter {
         font-size:8.5px;
     }
 
     .progress-wrap {
-        height:14px;
+        height:15px;
     }
 
     .progress-inside {
-        font-size:7.2px;
+        font-size:6.8px;
     }
 
     .today-grid {
@@ -476,20 +563,29 @@ div[data-baseweb="select"] svg {
     }
 
     .partner-box {
-        padding:13px;
-        border-radius:16px;
+        padding:14px;
+        border-radius:20px;
     }
 
     .partner-title {
         font-size:20px;
     }
 
+    .partner-row {
+        gap:7px;
+    }
+
+    .partner-row > div {
+        padding:8px;
+        border-radius:13px;
+    }
+
     .partner-money {
-        font-size:18px;
+        font-size:16px;
     }
 
     .partner-label {
-        font-size:11px;
+        font-size:10.5px;
     }
 }
 </style>
@@ -565,11 +661,7 @@ def get_distribution(restaurant, month):
     restaurant = normalize_restaurant_name(restaurant)
 
     if restaurant == "Спортивная" and month <= SPORTIVNAYA_OLD_RULE_UNTIL:
-        return {
-            "Ядровы": 33.33,
-            "Тарасенко": 33.33,
-            "Возврат инвестиций": 33.34
-        }
+        return {"Ядровы": 33.33, "Тарасенко": 33.33, "Возврат инвестиций": 33.34}
 
     return RESTAURANTS[restaurant]
 
@@ -655,7 +747,6 @@ def load_data():
 
     data = normalize_data(loaded)
     apply_initial_profits(data)
-
     return data
 
 
@@ -1188,27 +1279,6 @@ def render_archive_partner_details(yadrovy, tarasenko):
 Тарасенко — начислено: {money(t_accrued)}, выведено: {money(t_withdrawn)}, остаток: {money(t_balance)}
 </div>
 """,
-        unsafe_allow_html=True
-    )
-
-
-def render_partner_card(restaurant, accrued, withdrawn, balance, invest_note=0):
-    note = ""
-    if invest_note > 0:
-        note = f'<div class="partner-note">Из них {money(invest_note)} — возврат инвестиций.</div>'
-
-    st.markdown(
-        f'''
-<div class="partner-box">
-<div class="partner-title">{restaurant}</div>
-<div class="partner-row">
-<div><div class="partner-label">Начислено</div><div class="partner-money">{money(accrued)}</div></div>
-<div><div class="partner-label">Выведено</div><div class="partner-money">{money(withdrawn)}</div></div>
-<div><div class="partner-label">Остаток</div><div class="partner-money">{money(balance)}</div></div>
-</div>
-{note}
-</div>
-''',
         unsafe_allow_html=True
     )
 
