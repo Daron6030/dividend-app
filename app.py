@@ -609,7 +609,8 @@ def normalize_data(data):
                         "amount": amount,
                         "mode": "После утверждения прибыли",
                         "distribution": get_distribution(restaurant, month),
-                        "notify": True
+                        "notify": True,
+                        "comment": ""
                     })
         data["withdrawals"] = new_withdrawals
 
@@ -620,6 +621,8 @@ def normalize_data(data):
         row["restaurant"] = normalize_restaurant_name(row["restaurant"])
         if "notify" not in row:
             row["notify"] = True
+        if "comment" not in row:
+            row["comment"] = ""
 
     return data
 
@@ -1258,7 +1261,7 @@ user = st.session_state.user
 data = load_data()
 months = all_months(data)
 
-default_main_month = latest_profit_month(data)
+default_main_month = previous_month_key(date.today())
 default_work_month = previous_month_key(date.today())
 
 render_header(user)
@@ -1333,10 +1336,12 @@ if user["role"] == "partner":
                     if withdrawals and not is_closed_month(month):
                         for row in withdrawals:
                             notify_text = "уведомление отправлялось" if row.get("notify", True) else "без уведомления"
+                            comment_text = f" · Комментарий: {row.get('comment', '')}" if row.get("comment", "") else ""
                             st.caption(
                                 f"Дата вывода: {row.get('date', '')} · "
                                 f"Сумма: {money(row.get('amount', 0))} · "
                                 f"{row.get('mode', '')} · {notify_text}"
+                                f"{comment_text}"
                             )
 
     with tab_exit:
@@ -1464,6 +1469,20 @@ with tab_restaurant:
         disabled=use_proportions
     )
 
+    show_comment = st.checkbox(
+        "Добавить комментарий",
+        value=False
+    )
+
+    withdrawal_comment = ""
+
+    if show_comment:
+        withdrawal_comment = st.text_input(
+            "Комментарий",
+            value="",
+            placeholder="Например: кредит, закупка, перевод партнеру"
+        )
+
     if use_proportions:
         default_mode = "После утверждения прибыли" if profit > 0 else "До утверждения прибыли"
 
@@ -1497,7 +1516,8 @@ with tab_restaurant:
                 "amount": withdrawal_amount,
                 "mode": mode,
                 "distribution": distribution,
-                "notify": not without_notification
+                "notify": not without_notification,
+                "comment": withdrawal_comment.strip()
             })
 
             save_data(data)
@@ -1534,11 +1554,16 @@ with tab_restaurant:
                 c5, c6, c7, c8 = st.columns([2, 2, 3, 1])
 
                 notify_text = "уведомление отправлялось" if row.get("notify", True) else "без уведомления"
+                comment = row.get("comment", "")
 
                 c5.write(f"**Дата вывода:** {row['date']}")
                 c6.write(f"**Сумма:** {money(row['amount'])}")
                 c7.write(f"**Режим:** {row.get('mode', '')}")
-                st.caption(notify_text)
+
+                if comment:
+                    st.caption(f"{notify_text} · Комментарий: {comment}")
+                else:
+                    st.caption(notify_text)
 
                 if c8.button("Удалить", key=f"delete_month_{index}"):
                     original_index = data["withdrawals"].index(row)
@@ -1583,10 +1608,12 @@ with tab_archive:
                 if withdrawals and not is_closed_month(month):
                     for row in withdrawals:
                         notify_text = "уведомление отправлялось" if row.get("notify", True) else "без уведомления"
+                        comment_text = f" · Комментарий: {row.get('comment', '')}" if row.get("comment", "") else ""
                         st.caption(
                             f"Дата вывода: {row.get('date', '')} · "
                             f"Сумма: {money(row.get('amount', 0))} · "
                             f"{row.get('mode', '')} · {notify_text}"
+                            f"{comment_text}"
                         )
 
 
