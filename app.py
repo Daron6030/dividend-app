@@ -3,6 +3,8 @@ import json
 import os
 import urllib.parse
 import urllib.request
+import requests
+import base64
 from datetime import date
 
 st.set_page_config(
@@ -646,9 +648,108 @@ def apply_initial_profits(data):
                 })
 
 
+def github_headers():
+    token = st.secrets.get("GITHUB_TOKEN", "")
+    if not token:
+        return None
+
+    return {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json"
+    }
+
+
+def github_api_url():
+    repo = st.secrets.get("GITHUB_REPO", "")
+    if not repo:
+        return None
+
+    return f"https://api.github.com/repos/{repo}/contents/{DATA_FILE}"
+
+
+def load_data_from_github():
+    headers = github_headers()
+    api_url = github_api_url()
+
+    if not headers or not api_url:
+        return None
+
+    try:
+        response = requests.get(api_url, headers=headers, timeout=20)
+
+        if response.status_code != 200:
+            return None
+
+        payload = response.json()
+        content = payload.get("content", "")
+        decoded = base64.b64decode(content).decode("utf-8")
+        return json.loads(decoded)
+
+    except Exception as e:
+        print("GitHub load error:", e)
+        return None
+
+
+def save_data_to_github(json_content):
+    headers = github_headers()
+    api_url = github_api_url()
+
+    if not headers or not api_url:
+        return False
+
+    try:
+        sha = None
+        current = requests.get(api_url, headers=headers, timeout=20)
+
+        if current.status_code == 200:
+            sha = current.json().get("sha")
+
+        encoded_content = base64.b64encode(
+            json_content.encode("utf-8")
+        ).decode("utf-8")
+
+        payload = {
+            "message": "Auto update data.json",
+            "content": encoded_content,
+            "branch": "main"
+        }
+
+        if sha:
+            payload["sha"] = sha
+
+        result = requests.put(
+            api_url,
+            headers=headers,
+            json=payload,
+            timeout=20
+        )
+
+        return result.status_code in [200, 201]
+
+    except Exception as e:
+        print("GitHub save error:", e)
+        return False
+
+
 def load_data():
+    github_data = load_data_from_github()
+
+    if github_data is not None:
+        data = normalize_data(github_data)
+        apply_initial_profits(data)
+
+        try:
+            with open(DATA_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
+        except Exception:
+            pass
+
+        return data
+
     if not os.path.exists(DATA_FILE):
-        return {"profits": [], "withdrawals": []}
+        data = {"profits": [], "withdrawals": []}
+        apply_initial_profits(data)
+        return data
 
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         loaded = json.load(f)
@@ -661,8 +762,17 @@ def load_data():
 
 def save_data(data):
     data = normalize_data(data)
+
+    json_content = json.dumps(
+        data,
+        ensure_ascii=False,
+        indent=4
+    )
+
     with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+        f.write(json_content)
+
+    save_data_to_github(json_content)
 
 
 def all_months(data):
@@ -1188,27 +1298,6 @@ def render_archive_partner_details(yadrovy, tarasenko):
 Тарасенко — начислено: {money(t_accrued)}, выведено: {money(t_withdrawn)}, остаток: {money(t_balance)}
 </div>
 """,
-        unsafe_allow_html=True
-    )
-
-
-def render_partner_card(restaurant, accrued, withdrawn, balance, invest_note=0):
-    note = ""
-    if invest_note > 0:
-        note = f'<div class="partner-note">Из них {money(invest_note)} — возврат инвестиций.</div>'
-
-    st.markdown(
-        f'''
-<div class="partner-box">
-<div class="partner-title">{restaurant}</div>
-<div class="partner-row">
-<div><div class="partner-label">Начислено</div><div class="partner-money">{money(accrued)}</div></div>
-<div><div class="partner-label">Выведено</div><div class="partner-money">{money(withdrawn)}</div></div>
-<div><div class="partner-label">Остаток</div><div class="partner-money">{money(balance)}</div></div>
-</div>
-{note}
-</div>
-''',
         unsafe_allow_html=True
     )
 
