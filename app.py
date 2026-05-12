@@ -661,11 +661,11 @@ def github_headers():
 
 def github_api_url():
     repo = st.secrets.get("GITHUB_REPO", "")
+
     if not repo:
         return None
 
-    return f"https://api.github.com/repos/{repo}/contents/{DATA_FILE}"
-
+    return f"https://api.github.com/repos/{repo}/contents/data.json"
 
 def load_data_from_github():
     headers = github_headers()
