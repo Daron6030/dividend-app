@@ -151,19 +151,5 @@
             "amount": 0
         }
     ],
-    "withdrawals": [
-        {
-            "date": "2026-05-12",
-            "month": "2026-04",
-            "restaurant": "Гончарная",
-            "amount": 1000,
-            "mode": "До утверждения прибыли",
-            "distribution": {
-                "Ядровы": 50,
-                "Тарасенко": 50
-            },
-            "notify": true,
-            "comment": ""
-        }
-    ]
+    "withdrawals": []
 }
