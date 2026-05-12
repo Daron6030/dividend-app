@@ -216,6 +216,19 @@
             },
             "notify": true,
             "comment": ""
+        },
+        {
+            "date": "2026-05-12",
+            "month": "2026-04",
+            "restaurant": "Спортивная",
+            "amount": 200000,
+            "mode": "До утверждения прибыли",
+            "distribution": {
+                "Ядровы": 50,
+                "Тарасенко": 50
+            },
+            "notify": true,
+            "comment": ""
         }
     ]
 }
