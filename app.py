@@ -772,8 +772,6 @@ def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         f.write(json_content)
 
-    save_data_to_github(json_content)
-
 
 def all_months(data):
     months = set()
