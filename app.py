@@ -15,6 +15,7 @@ st.set_page_config(
 )
 
 DATA_FILE = "data.json"
+GITHUB_BRANCH = "main"
 
 USERS = {
     "Daron6030": {
@@ -650,12 +651,14 @@ def apply_initial_profits(data):
 
 def github_headers():
     token = st.secrets.get("GITHUB_TOKEN", "")
+
     if not token:
         return None
 
     return {
         "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json"
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28"
     }
 
 
@@ -665,7 +668,14 @@ def github_api_url():
     if not repo:
         return None
 
-    return f"https://api.github.com/repos/{repo}/contents/data.json"
+    repo = repo.replace("https://github.com/", "")
+    repo = repo.replace("http://github.com/", "")
+    repo = repo.replace("github.com/", "")
+    repo = repo.replace("/tree/main", "")
+    repo = repo.strip().strip("/")
+
+    return f"https://api.github.com/repos/{repo}/contents/{DATA_FILE}"
+
 
 def load_data_from_github():
     headers = github_headers()
@@ -675,7 +685,12 @@ def load_data_from_github():
         return None
 
     try:
-        response = requests.get(api_url, headers=headers, timeout=20)
+        response = requests.get(
+            api_url,
+            headers=headers,
+            params={"ref": GITHUB_BRANCH},
+            timeout=20
+        )
 
         if response.status_code != 200:
             return None
@@ -695,53 +710,75 @@ def save_data_to_github(json_content):
     api_url = github_api_url()
 
     if not headers:
-        raise Exception("No GitHub token")
+        return False, "Нет GITHUB_TOKEN в Streamlit Secrets"
 
     if not api_url:
-        raise Exception("No GitHub repo")
+        return False, "Нет GITHUB_REPO в Streamlit Secrets"
 
-    response = requests.get(
-        api_url,
-        headers=headers,
-        timeout=20
-    )
-
-    sha = None
-
-    if response.status_code == 200:
-        sha = response.json().get("sha")
-
-    elif response.status_code == 404:
-        raise Exception("Repository or file not found")
-
-    elif response.status_code == 401:
-        raise Exception("Bad GitHub token")
-
-    encoded_content = base64.b64encode(
-        json_content.encode("utf-8")
-    ).decode("utf-8")
-
-    payload = {
-        "message": "Auto update data.json",
-        "content": encoded_content
-    }
-
-    if sha:
-        payload["sha"] = sha
-
-    result = requests.put(
-        api_url,
-        headers=headers,
-        json=payload,
-        timeout=20
-    )
-
-    if result.status_code not in [200, 201]:
-        raise Exception(
-            f"GitHub PUT error {result.status_code}: {result.text}"
+    try:
+        current = requests.get(
+            api_url,
+            headers=headers,
+            params={"ref": GITHUB_BRANCH},
+            timeout=20
         )
 
-    return True
+        sha = None
+
+        if current.status_code == 200:
+            sha = current.json().get("sha")
+
+        elif current.status_code == 401:
+            return False, "GitHub 401: неправильный токен"
+
+        elif current.status_code == 403:
+            return False, "GitHub 403: у токена нет прав на запись"
+
+        elif current.status_code == 404:
+            return False, f"GitHub 404: не найден repo/file. Проверь GITHUB_REPO. URL: {api_url}"
+
+        else:
+            return False, f"GitHub GET error {current.status_code}: {current.text}"
+
+        encoded_content = base64.b64encode(
+            json_content.encode("utf-8")
+        ).decode("utf-8")
+
+        payload = {
+            "message": "Auto update data.json",
+            "content": encoded_content,
+            "branch": GITHUB_BRANCH
+        }
+
+        if sha:
+            payload["sha"] = sha
+
+        result = requests.put(
+            api_url,
+            headers=headers,
+            json=payload,
+            timeout=20
+        )
+
+        if result.status_code in [200, 201]:
+            return True, "GitHub save: OK"
+
+        if result.status_code == 401:
+            return False, "GitHub PUT 401: неправильный токен"
+
+        if result.status_code == 403:
+            return False, "GitHub PUT 403: у токена нет прав на запись"
+
+        if result.status_code == 404:
+            return False, f"GitHub PUT 404: repo/file/branch не найден. URL: {api_url}"
+
+        if result.status_code == 422:
+            return False, f"GitHub PUT 422: конфликт или неверная ветка. Ответ: {result.text}"
+
+        return False, f"GitHub PUT error {result.status_code}: {result.text}"
+
+    except Exception as e:
+        return False, f"GitHub exception: {str(e)}"
 
 
 def load_data():
@@ -785,17 +822,13 @@ def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         f.write(json_content)
 
-    try:
-        result = save_data_to_github(json_content)
+    ok, message = save_data_to_github(json_content)
 
-        if result:
-            st.toast("GitHub save: OK")
+    if ok:
+        st.toast("GitHub save: OK")
+    else:
+        st.error(message)
 
-        else:
-            st.error("GitHub save failed")
-
-    except Exception as e:
-        st.error(f"GitHub error: {str(e)}")
 
 def all_months(data):
     months = set()
