@@ -694,41 +694,54 @@ def save_data_to_github(json_content):
     headers = github_headers()
     api_url = github_api_url()
 
-    if not headers or not api_url:
-        return False
+    if not headers:
+        raise Exception("No GitHub token")
 
-    try:
-        sha = None
-        current = requests.get(api_url, headers=headers, timeout=20)
+    if not api_url:
+        raise Exception("No GitHub repo")
 
-        if current.status_code == 200:
-            sha = current.json().get("sha")
+    response = requests.get(
+        api_url,
+        headers=headers,
+        timeout=20
+    )
 
-        encoded_content = base64.b64encode(
-            json_content.encode("utf-8")
-        ).decode("utf-8")
+    sha = None
 
-        payload = {
-            "message": "Auto update data.json",
-            "content": encoded_content,
-            "branch": "main"
-        }
+    if response.status_code == 200:
+        sha = response.json().get("sha")
 
-        if sha:
-            payload["sha"] = sha
+    elif response.status_code == 404:
+        raise Exception("Repository or file not found")
 
-        result = requests.put(
-            api_url,
-            headers=headers,
-            json=payload,
-            timeout=20
+    elif response.status_code == 401:
+        raise Exception("Bad GitHub token")
+
+    encoded_content = base64.b64encode(
+        json_content.encode("utf-8")
+    ).decode("utf-8")
+
+    payload = {
+        "message": "Auto update data.json",
+        "content": encoded_content
+    }
+
+    if sha:
+        payload["sha"] = sha
+
+    result = requests.put(
+        api_url,
+        headers=headers,
+        json=payload,
+        timeout=20
+    )
+
+    if result.status_code not in [200, 201]:
+        raise Exception(
+            f"GitHub PUT error {result.status_code}: {result.text}"
         )
 
-        return result.status_code in [200, 201]
-
-    except Exception as e:
-        print("GitHub save error:", e)
-        return False
+    return True
 
 
 def load_data():
@@ -772,13 +785,17 @@ def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         f.write(json_content)
 
-    save_data_to_github(json_content)
+    try:
+        result = save_data_to_github(json_content)
 
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        f.write(json_content)
+        if result:
+            st.toast("GitHub save: OK")
 
-    save_data_to_github(json_content)
+        else:
+            st.error("GitHub save failed")
 
+    except Exception as e:
+        st.error(f"GitHub error: {str(e)}")
 
 def all_months(data):
     months = set()
