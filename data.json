@@ -1,4 +1,169 @@
 {
-  "profits": {},
-  "withdrawals": {}
+    "profits": [
+        {
+            "restaurant": "Гончарная",
+            "month": "2025-10",
+            "amount": 1400000
+        },
+        {
+            "restaurant": "Фонтанка",
+            "month": "2025-10",
+            "amount": 490000
+        },
+        {
+            "restaurant": "Спортивная",
+            "month": "2025-10",
+            "amount": 1280000
+        },
+        {
+            "restaurant": "Загородный",
+            "month": "2025-10",
+            "amount": 650000
+        },
+        {
+            "restaurant": "Науки",
+            "month": "2025-10",
+            "amount": 0
+        },
+        {
+            "restaurant": "Гончарная",
+            "month": "2025-11",
+            "amount": 619000
+        },
+        {
+            "restaurant": "Фонтанка",
+            "month": "2025-11",
+            "amount": 430000
+        },
+        {
+            "restaurant": "Спортивная",
+            "month": "2025-11",
+            "amount": 1000000
+        },
+        {
+            "restaurant": "Загородный",
+            "month": "2025-11",
+            "amount": 572000
+        },
+        {
+            "restaurant": "Науки",
+            "month": "2025-11",
+            "amount": 0
+        },
+        {
+            "restaurant": "Гончарная",
+            "month": "2025-12",
+            "amount": 470000
+        },
+        {
+            "restaurant": "Фонтанка",
+            "month": "2025-12",
+            "amount": 490000
+        },
+        {
+            "restaurant": "Спортивная",
+            "month": "2025-12",
+            "amount": 639000
+        },
+        {
+            "restaurant": "Загородный",
+            "month": "2025-12",
+            "amount": 194000
+        },
+        {
+            "restaurant": "Науки",
+            "month": "2025-12",
+            "amount": 0
+        },
+        {
+            "restaurant": "Гончарная",
+            "month": "2026-01",
+            "amount": 960000
+        },
+        {
+            "restaurant": "Фонтанка",
+            "month": "2026-01",
+            "amount": 200000
+        },
+        {
+            "restaurant": "Спортивная",
+            "month": "2026-01",
+            "amount": 1200000
+        },
+        {
+            "restaurant": "Загородный",
+            "month": "2026-01",
+            "amount": 385000
+        },
+        {
+            "restaurant": "Науки",
+            "month": "2026-01",
+            "amount": 0
+        },
+        {
+            "restaurant": "Гончарная",
+            "month": "2026-02",
+            "amount": 534000
+        },
+        {
+            "restaurant": "Фонтанка",
+            "month": "2026-02",
+            "amount": 0
+        },
+        {
+            "restaurant": "Спортивная",
+            "month": "2026-02",
+            "amount": 437000
+        },
+        {
+            "restaurant": "Загородный",
+            "month": "2026-02",
+            "amount": 67000
+        },
+        {
+            "restaurant": "Науки",
+            "month": "2026-02",
+            "amount": 0
+        },
+        {
+            "restaurant": "Гончарная",
+            "month": "2026-03",
+            "amount": 1200000
+        },
+        {
+            "restaurant": "Фонтанка",
+            "month": "2026-03",
+            "amount": 520000
+        },
+        {
+            "restaurant": "Спортивная",
+            "month": "2026-03",
+            "amount": 1200000
+        },
+        {
+            "restaurant": "Загородный",
+            "month": "2026-03",
+            "amount": 750000
+        },
+        {
+            "restaurant": "Науки",
+            "month": "2026-03",
+            "amount": 0
+        }
+    ],
+    "withdrawals": [
+        {
+            "date": "2026-05-12",
+            "month": "2026-04",
+            "restaurant": "Гончарная",
+            "amount": 1000,
+            "mode": "До утверждения прибыли",
+            "distribution": {
+                "Ядровы": 50,
+                "Тарасенко": 50
+            },
+            "notify": true,
+            "comment": ""
+        }
+    ]
 }
