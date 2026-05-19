@@ -164,6 +164,11 @@
             "restaurant": "Спортивная",
             "month": "2026-04",
             "amount": 1000000
+        },
+        {
+            "restaurant": "Загородный",
+            "month": "2026-04",
+            "amount": 860000
         }
     ],
     "withdrawals": [
