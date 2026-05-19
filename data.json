@@ -154,6 +154,11 @@
             "restaurant": "Гончарная",
             "month": "2026-04",
             "amount": 900000
+        },
+        {
+            "restaurant": "Фонтанка",
+            "month": "2026-04",
+            "amount": 571000
         }
     ],
     "withdrawals": [
