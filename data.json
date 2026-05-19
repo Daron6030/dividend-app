@@ -149,6 +149,11 @@
             "restaurant": "Науки",
             "month": "2026-03",
             "amount": 0
+        },
+        {
+            "restaurant": "Гончарная",
+            "month": "2026-04",
+            "amount": 900000
         }
     ],
     "withdrawals": [
