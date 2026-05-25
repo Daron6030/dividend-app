@@ -327,6 +327,19 @@
             },
             "notify": true,
             "comment": ""
+        },
+        {
+            "date": "2026-05-20",
+            "month": "2026-04",
+            "restaurant": "Загородный",
+            "amount": 61100,
+            "mode": "Вся сумма: Ядровы",
+            "distribution": {
+                "Ядровы": 100,
+                "Тарасенко": 0
+            },
+            "notify": true,
+            "comment": ""
         }
     ]
 }
