@@ -353,6 +353,19 @@
             },
             "notify": true,
             "comment": ""
+        },
+        {
+            "date": "2026-05-25",
+            "month": "2026-04",
+            "restaurant": "Загородный",
+            "amount": 125000,
+            "mode": "Вся сумма: Тарасенко",
+            "distribution": {
+                "Ядровы": 0,
+                "Тарасенко": 100
+            },
+            "notify": true,
+            "comment": ""
         }
     ]
 }
