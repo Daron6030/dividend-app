@@ -169,6 +169,11 @@
             "restaurant": "Загородный",
             "month": "2026-04",
             "amount": 860000
+        },
+        {
+            "restaurant": "Фонтанка",
+            "month": "2026-09",
+            "amount": 600000
         }
     ],
     "withdrawals": [
