@@ -8,6 +8,9 @@ import base64
 from datetime import date
 from html import escape
 import re
+import hashlib
+from pathlib import Path
+from uuid import uuid4
 
 st.set_page_config(
     page_title="Старик Хинкалыч · Dividends Space",
@@ -464,127 +467,143 @@ def github_headers():
     token = get_secret("GITHUB_TOKEN", "")
     if not token:
         return None
-
-    return {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json"
-    }
+    return {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
 
 
 def github_api_url():
     repo = get_secret("GITHUB_REPO", "")
-    if not repo:
-        return None
+    return f"https://api.github.com/repos/{repo}/contents/{DATA_FILE}" if repo else None
 
-    return f"https://api.github.com/repos/{repo}/contents/{DATA_FILE}"
+
+def storage_http_error(status):
+    if status == 401:
+        return "GitHub отклонил ключ доступа (401). Проверьте срок действия ключа в Streamlit Secrets."
+    if status == 403:
+        return "GitHub запретил доступ (403). Проверьте права ключа на чтение и запись Contents и лимиты API."
+    if status == 404:
+        return "Хранилище не найдено (404). Проверьте GITHUB_REPO, файл data.json и доступ ключа."
+    if status in (409, 422):
+        return "Данные изменились в другом сеансе. Обновите страницу и сверяйте операцию перед повтором."
+    return f"Хранилище временно недоступно (HTTP {status})."
 
 
 def load_data_from_github():
-    headers = github_headers()
-    api_url = github_api_url()
-
+    st.session_state['_storage_sha'] = None
+    st.session_state['_storage_error'] = ''
+    headers, api_url = github_headers(), github_api_url()
     if not headers or not api_url:
+        st.session_state['_storage_error'] = "Постоянное хранение не настроено: нужны GITHUB_TOKEN и GITHUB_REPO в Streamlit Secrets."
         return None
-
     try:
-        response = requests.get(api_url, headers=headers, timeout=20)
-
+        response = requests.get(api_url, headers=headers, params={'ref': 'main'}, timeout=20)
         if response.status_code != 200:
+            st.session_state['_storage_error'] = storage_http_error(response.status_code)
             return None
-
         payload = response.json()
-        content = payload.get("content", "")
-        decoded = base64.b64decode(content).decode("utf-8")
-        return json.loads(decoded)
-
-    except Exception as e:
-        print("GitHub load error:", e)
+        decoded = json.loads(base64.b64decode(payload['content']).decode('utf-8'))
+        if not isinstance(decoded, dict) or not {'profits', 'withdrawals'} <= decoded.keys():
+            raise ValueError('Invalid financial data')
+        if not all(isinstance(decoded[k], (list, dict)) for k in ('profits', 'withdrawals')):
+            raise ValueError('Invalid financial records')
+        st.session_state['_storage_sha'] = payload['sha']
+        return decoded
+    except Exception:
+        st.session_state['_storage_error'] = "Не удалось прочитать хранилище. Показана доступная копия; новые изменения пока не сохраняются."
         return None
 
 
 def save_data_to_github(json_content):
-    headers = github_headers()
-    api_url = github_api_url()
-
-    if not headers or not api_url:
+    headers, api_url = github_headers(), github_api_url()
+    sha = st.session_state.get('_storage_sha')
+    if not headers or not api_url or not sha:
+        st.session_state['_storage_error'] = st.session_state.get('_storage_error') or "Нет подтверждённой версии хранилища. Обновите страницу перед сохранением."
         return False
-
+    raw = json_content.encode('utf-8')
+    expected_sha = hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
+    payload = {'message': 'Auto update data.json', 'content': base64.b64encode(raw).decode(),
+               'branch': 'main', 'sha': sha}
     try:
-        sha = None
-        current = requests.get(api_url, headers=headers, timeout=20)
-
-        if current.status_code == 200:
-            sha = current.json().get("sha")
-
-        encoded_content = base64.b64encode(
-            json_content.encode("utf-8")
-        ).decode("utf-8")
-
-        payload = {
-            "message": "Auto update data.json",
-            "content": encoded_content,
-            "branch": "main"
-        }
-
-        if sha:
-            payload["sha"] = sha
-
-        result = requests.put(
-            api_url,
-            headers=headers,
-            json=payload,
-            timeout=20
-        )
-
-        return result.status_code in [200, 201]
-
-    except Exception as e:
-        print("GitHub save error:", e)
+        result = requests.put(api_url, headers=headers, json=payload, timeout=20)
+        if result.status_code not in (200, 201):
+            st.session_state['_storage_error'] = storage_http_error(result.status_code)
+            return False
+        saved_sha = result.json().get('content', {}).get('sha')
+        if saved_sha != expected_sha:
+            st.session_state['_storage_error'] = "Ответ хранилища не подтвердил содержимое. Проверьте историю перед повтором операции."
+            return False
+        st.session_state['_storage_sha'] = saved_sha
+        st.session_state['_storage_error'] = ''
+        return True
+    except Exception:
+        st.session_state['_storage_error'] = "Не получено подтверждение сохранения. Проверьте историю перед повтором, чтобы не создать дубль."
         return False
 
 
 def load_data():
-    github_data = load_data_from_github()
-
-    if github_data is not None:
-        data = normalize_data(github_data)
-        apply_initial_profits(data)
-
-        try:
-            with open(DATA_FILE, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=4)
-        except Exception:
-            pass
-
-        return data
-
-    if not os.path.exists(DATA_FILE):
-        data = {"profits": [], "withdrawals": []}
-        apply_initial_profits(data)
-        return data
-
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        loaded = json.load(f)
-
-    data = normalize_data(loaded)
+    # Never overwrite the server copy while reading: it may contain unsynced records.
+    local = None
+    try:
+        local = json.loads(Path(DATA_FILE).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        pass
+    remote = load_data_from_github()
+    if remote is not None:
+        data = normalize_data(remote)
+        if isinstance(local, dict):
+            local_normalized = normalize_data(local)
+            extra = any(row not in data[k] for k in ('profits', 'withdrawals') for row in local_normalized[k])
+            if extra:
+                st.session_state['_storage_local_candidate'] = json.dumps(local_normalized, ensure_ascii=False, indent=4)
+        st.session_state['_storage_confirmed'] = json.dumps(data, ensure_ascii=False)
+    else:
+        confirmed = st.session_state.get('_storage_confirmed')
+        data = normalize_data(json.loads(confirmed) if confirmed else local)
     apply_initial_profits(data)
-
     return data
 
 
 def save_data(data):
-    data = normalize_data(data)
+    json_content = json.dumps(normalize_data(data), ensure_ascii=False, indent=4)
+    # Keep an attempt separate from the authoritative data and offer it for download.
+    st.session_state['_storage_pending'] = json_content
+    try:
+        recovery_dir = Path('.data-recovery')
+        recovery_dir.mkdir(exist_ok=True)
+        (recovery_dir / f'{uuid4().hex}.json').write_text(json_content, encoding='utf-8')
+    except OSError:
+        pass
+    if not save_data_to_github(json_content):
+        st.session_state['_storage_save_error'] = "Сохранение не подтверждено. " + st.session_state.get('_storage_error', '')
+        st.rerun()
+    st.session_state['_storage_confirmed'] = json_content
+    st.session_state.pop('_storage_pending', None)
+    st.session_state.pop('_storage_save_error', None)
+    # Refresh only after GitHub confirms this exact data version.
+    try:
+        temp = Path(DATA_FILE + '.tmp')
+        temp.write_text(json_content, encoding='utf-8')
+        os.replace(temp, DATA_FILE)
+    except OSError:
+        pass
 
-    json_content = json.dumps(
-        data,
-        ensure_ascii=False,
-        indent=4
-    )
 
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        f.write(json_content)
-
-    save_data_to_github(json_content)
+def render_storage_status():
+    if st.session_state.get('_storage_save_error'):
+        st.error(st.session_state['_storage_save_error'])
+    error = st.session_state.get('_storage_error')
+    if error:
+        st.error('Синхронизация данных недоступна. ' + error)
+        st.caption('Не считайте новые операции сохранёнными без подтверждения. Доступная копия может быть неполной.')
+    pending = st.session_state.get('_storage_pending')
+    if pending:
+        st.warning('Есть неподтверждённые изменения. Скачайте их перед закрытием страницы и сверьте с историей.')
+        st.download_button('Скачать неподтверждённые изменения', pending,
+                           file_name='dividends-unsynced.json', mime='application/json', key='pending_data_backup')
+    candidate = st.session_state.get('_storage_local_candidate')
+    if candidate:
+        st.warning('В копии на сервере есть записи, отличающиеся от GitHub. Они сохранены отдельно для сверки.')
+        st.download_button('Скачать копию сервера для сверки', candidate,
+                           file_name='dividends-server-copy.json', mime='application/json', key='server_data_backup')
 
 
 def all_months(data):
@@ -1347,6 +1366,8 @@ if st.session_state.get("active_page") not in pages:
     st.session_state.active_page = pages[0]
 with st.container(key="primary_navigation"):
     active_page = st.radio("Раздел", pages, horizontal=True, key="active_page", label_visibility="collapsed", width="stretch")
+if user["role"] == "admin":
+    render_storage_status()
 if "feedback" in st.session_state:
     st.success(st.session_state.pop("feedback"))
 
