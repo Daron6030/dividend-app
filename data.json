@@ -179,6 +179,11 @@
             "restaurant": "Гончарная",
             "month": "2026-09",
             "amount": 1400000
+        },
+        {
+            "restaurant": "Спортивная",
+            "month": "2026-09",
+            "amount": 450000
         }
     ],
     "withdrawals": [
