@@ -68,18 +68,23 @@ p,label {color:var(--ink);}
 .account-icon {display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#f1e9df;color:var(--accent);}
 .account-icon svg {width:22px;height:22px;}
 .user-role {font-size:11px;color:var(--muted);font-weight:400;}
-[data-testid="stTabs"] {position:relative;}
-[data-testid="stTabs"] [role="tablist"] {height:auto;gap:5px;padding:4px;background:#fff9;border:1px solid #e7ded599;border-radius:17px;margin-bottom:14px;width:fit-content;}
-button[data-baseweb="tab"] {min-height:43px;padding:9px 15px!important;border-radius:12px;color:var(--ink)!important;gap:8px;}
-button[data-baseweb="tab"] p {font-size:12px;font-weight:550;}
-button[data-baseweb="tab"][aria-selected="true"] {background:#f0e0d3;box-shadow:inset 0 0 0 1px #e3cdb9;color:var(--accent)!important;}
-button[data-baseweb="tab"][aria-selected="true"] p {color:var(--accent);font-weight:700;}
-button[data-baseweb="tab"]::before {content:'';display:block;width:17px;height:17px;background:currentColor;mask:var(--nav-icon) center/contain no-repeat;flex-shrink:0;}
-button[data-baseweb="tab"]:nth-of-type(1) {--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 11 12 3l9 8M5 10v11h5v-7h4v7h5V10' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
-button[data-baseweb="tab"]:nth-of-type(2) {--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 3v7c0 3 6 3 6 0V3M7 3v18M19 3c-3 3-4 7-4 10h4m0-10v18' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
-button[data-baseweb="tab"]:nth-of-type(3),body:has(.app-header[data-role="partner"]) button[data-baseweb="tab"]:nth-of-type(2) {--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 7V4h7l3 3h8v13H3V7Zm0 2h18' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
-button[data-baseweb="tab"]:nth-of-type(4),body:has(.app-header[data-role="partner"]) button[data-baseweb="tab"]:nth-of-type(3) {--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 4H4v16h6m5-13 5 5-5 5m-7-5h12' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
-[data-baseweb="tab-highlight"],[data-baseweb="tab-border"] {display:none;}
+.st-key-primary_navigation {position:relative;}
+.st-key-primary_navigation [role="radiogroup"] {height:auto;gap:5px;padding:4px;background:#fff9;border:1px solid #e7ded599;border-radius:17px;margin-bottom:14px;width:fit-content;}
+.st-key-primary_navigation [role="radiogroup"] label {min-height:43px;padding:9px 15px!important;border-radius:12px;color:var(--ink)!important;gap:8px;}
+.st-key-primary_navigation [role="radiogroup"] label p {font-size:12px;font-weight:550;}
+.st-key-primary_navigation [role="radiogroup"] label:has(input:checked) {background:#f0e0d3;box-shadow:inset 0 0 0 1px #e3cdb9;color:var(--accent)!important;}
+.st-key-primary_navigation [role="radiogroup"] label:has(input:checked) p {color:var(--accent);font-weight:700;}
+.st-key-primary_navigation [role="radiogroup"] label::before {content:'';display:block;width:17px;height:17px;background:currentColor;mask:var(--nav-icon) center/contain no-repeat;flex-shrink:0;}
+.st-key-primary_navigation [role="radiogroup"] label:nth-of-type(1) {--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 11 12 3l9 8M5 10v11h5v-7h4v7h5V10' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+.st-key-primary_navigation [role="radiogroup"] label:nth-of-type(2) {--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 3v7c0 3 6 3 6 0V3M7 3v18M19 3c-3 3-4 7-4 10h4m0-10v18' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+.st-key-primary_navigation [role="radiogroup"] label:nth-of-type(3),body:has(.app-header[data-role="partner"]) .st-key-primary_navigation [role="radiogroup"] label:nth-of-type(2) {--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 7V4h7l3 3h8v13H3V7Zm0 2h18' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+.st-key-primary_navigation [role="radiogroup"] label:nth-of-type(4),body:has(.app-header[data-role="partner"]) .st-key-primary_navigation [role="radiogroup"] label:nth-of-type(3) {--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 4H4v16h6m5-13 5 5-5 5m-7-5h12' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+
+.st-key-primary_navigation [role="radiogroup"] {flex-wrap:nowrap;align-items:stretch;}
+.st-key-primary_navigation [role="radiogroup"] label {display:flex;align-items:center;margin:0;cursor:pointer;flex:0 0 auto;white-space:nowrap;}
+.st-key-primary_navigation [role="radiogroup"] label > div:first-child {display:none;}
+.st-key-primary_navigation [role="radiogroup"] label:focus-within {outline:3px solid #ba8e68;outline-offset:2px;}
+
 .page-heading {position:relative;min-height:132px;display:flex;align-items:center;margin:0 0 8px;isolation:isolate;}
 .hero-copy {position:relative;z-index:1;padding:12px 0;max-width:64%;}
 .eyebrow {font-size:10px;letter-spacing:.19em;font-weight:700;color:var(--muted);margin-bottom:8px;}
@@ -190,7 +195,7 @@ button:focus-visible {outline:3px solid #ba8e68!important;outline-offset:3px;}
 .login-intro .page-title {font-size:36px;}
 .login-footer {text-align:center;font-size:11px;color:var(--muted);margin-top:15px;}
 @media(min-width:901px) {
- button[data-baseweb="tab"] p {font-size:14px;}
+ .st-key-primary_navigation [role="radiogroup"] label p {font-size:14px;}
  .app-user {font-size:14px;}.user-role {font-size:12px;}
  .summary-label {font-size:14px;}.summary-value {font-size:30px;}.summary-footnote {font-size:12px;}
  .mini-title {font-size:14px;}.mini-label {font-size:12px;}.mini-money {font-size:16px;}
@@ -199,7 +204,7 @@ button:focus-visible {outline:3px solid #ba8e68!important;outline-offset:3px;}
  .partner-subtitle {font-size:12px;}.partner-note {font-size:12px;}
 }
 @media(min-width:1150px) {
- [data-testid="stTabs"] [role="tablist"] {position:absolute;top:-83px;left:50%;transform:translateX(-50%);z-index:2;margin:0;}
+ .st-key-primary_navigation [role="radiogroup"] {position:absolute;top:-83px;left:50%;transform:translateX(-50%);z-index:2;margin:0;}
  .st-key-editors [data-testid="stForm"] {min-height:410px;}
  .st-key-editors [data-testid="stColumn"]:has([data-testid="stForm"])>div {height:100%;}
  .st-key-editors [data-testid="stLayoutWrapper"]:has(>[data-testid="stForm"]) {flex:1;}
@@ -208,8 +213,8 @@ button:focus-visible {outline:3px solid #ba8e68!important;outline-offset:3px;}
 }
 @media(max-width:1149px) {
  .block-container {padding:18px 28px 40px!important;}
- [data-testid="stTabs"] [role="tablist"] {width:100%;}
- button[data-baseweb="tab"] {flex:1;justify-content:center;}
+ .st-key-primary_navigation [role="radiogroup"] {width:100%;}
+ .st-key-primary_navigation [role="radiogroup"] label {flex:1;justify-content:center;}
  .page-title {font-size:41px;}
  .hero-copy {max-width:65%;}
  .hero-restaurant::after {width:43%;}
@@ -242,10 +247,10 @@ button:focus-visible {outline:3px solid #ba8e68!important;outline-offset:3px;}
  .brand-subtitle {font-size:7px;letter-spacing:.06em;}
  .app-user {font-size:9px;max-width:90px;text-align:right;line-height:1.4;}
  .account-icon {display:none;}.user-role {font-size:8px;}
- [data-testid="stTabs"] [role="tablist"] {padding:3px;gap:2px;border-radius:12px;margin-bottom:0;}
- button[data-baseweb="tab"] {padding:8px 3px!important;min-height:42px;gap:4px;}
- button[data-baseweb="tab"] p {font-size:11px;}
- button[data-baseweb="tab"]::before {width:14px;height:14px;}
+ .st-key-primary_navigation [role="radiogroup"] {padding:3px;gap:2px;border-radius:12px;margin-bottom:0;}
+ .st-key-primary_navigation [role="radiogroup"] label {padding:8px 3px!important;min-height:42px;gap:4px;}
+ .st-key-primary_navigation [role="radiogroup"] label p {font-size:11px;}
+ .st-key-primary_navigation [role="radiogroup"] label::before {width:14px;height:14px;}
  .page-heading {min-height:112px;margin:0 0 4px;}
  .hero-copy {max-width:100%;padding:14px 0;}
  .eyebrow {font-size:8px;letter-spacing:.13em;margin-bottom:8px;}
@@ -1154,6 +1159,13 @@ def checked_amount(text, allow_negative=False):
     return int(cleaned)
 
 
+def format_withdrawal_input(key):
+    """Group complete ruble amounts without changing empty or invalid input."""
+    amount = checked_amount(st.session_state.get(key, ""))
+    if amount is not None:
+        st.session_state[key] = format_input_money(amount)
+
+
 def flash(message):
     st.session_state["feedback"] = message
     st.rerun()
@@ -1167,7 +1179,6 @@ def render_restaurant(data, months):
     with c2:
         restaurant = select_restaurant("restaurant_name")
     st.caption("Месяц прибыли — за какой период заработаны деньги. Дата вывода указывается отдельно.")
-    render_month_summary(data, month)
     profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
     known = profit_is_recorded(data, restaurant, month)
     context = f"{month}_{restaurant}"
@@ -1195,7 +1206,9 @@ def render_restaurant(data, months):
                     with st.form(f"profit_form_{context}", enter_to_submit=False):
                         form_heading("Утверждённая прибыль", "approval")
                         st.caption(f"{restaurant} · {month_label(month)}")
-                        profit_input = st.text_input("Чистая прибыль, ₽", value=format_input_money(profit) if known else "",
+                        if f"profit_{context}" not in st.session_state:
+                            st.session_state[f"profit_{context}"] = format_input_money(profit) if known else ""
+                        profit_input = st.text_input("Чистая прибыль, ₽",
                                                      placeholder="Например, 1 000 000", key=f"profit_{context}")
                         saved = st.form_submit_button("Сохранить прибыль", type="primary", width="stretch")
                         if saved:
@@ -1216,19 +1229,24 @@ def render_restaurant(data, months):
                     key = f"withdrawal_{context}_{revision}"
                     c3, c4 = st.columns(2)
                     with c3:
-                        withdrawal_date = st.date_input("Дата фактического вывода", date.today(), format="DD.MM.YYYY", key=f"{key}_date")
+                        withdrawal_date = st.date_input("Дата фактического вывода", format="DD.MM.YYYY", key=f"{key}_date")
                     with c4:
-                        withdrawal_input = st.text_input("Сумма вывода, ₽", placeholder="Например, 200 000", key=f"{key}_amount")
+                        withdrawal_input = st.text_input("Сумма вывода, ₽", placeholder="Например, 200 000", key=f"{key}_amount",
+                                                         on_change=format_withdrawal_input, args=(f"{key}_amount",))
                     amount = checked_amount(withdrawal_input)
-                    use_proportions = st.checkbox("Разделить по пропорциям ресторана", value=True, key=f"{key}_proportions")
+                    if f"{key}_proportions" not in st.session_state:
+                        st.session_state[f"{key}_proportions"] = True
+                    use_proportions = st.checkbox("Разделить по пропорциям ресторана", key=f"{key}_proportions")
                     if use_proportions:
                         if fixed:
                             mode = "Фиксированное начисление"
                             distribution = {"Ядровы": 50, "Тарасенко": 50}
                             st.caption("Выплата из фиксированного начисления: Ядровы 50% · Тарасенко 50%.")
                         else:
+                            if f"{key}_mode" not in st.session_state:
+                                st.session_state[f"{key}_mode"] = "После утверждения прибыли" if known else "До утверждения прибыли"
                             mode = st.radio("Режим распределения", ["До утверждения прибыли", "После утверждения прибыли"],
-                                            index=1 if known else 0, horizontal=True, key=f"{key}_mode")
+                                            horizontal=True, key=f"{key}_mode")
                             distribution = {"Ядровы": 50, "Тарасенко": 50} if mode == "До утверждения прибыли" else get_distribution(restaurant, month)
                             st.caption("Предварительная выплата: Ядровы 50% · Тарасенко 50%." if mode == "До утверждения прибыли" else
                                        " · ".join(f"{name}: {percent:g}%" for name, percent in distribution.items()))
@@ -1317,23 +1335,29 @@ if st.session_state.user is None:
 user = st.session_state.user
 data = load_data()
 months = all_months(data)
+
+# Keep explicit filter and draft values while their page is not rendered.
+for state_key in list(st.session_state):
+    if state_key.startswith(("main_", "partner_", "restaurant_", "archive_", "withdrawal_", "profit_")) and not state_key.endswith("_save"):
+        st.session_state[state_key] = st.session_state[state_key]
+
 render_header(user)
+pages = ["Главная", "Ресторан", "Архив", "Выйти"] if user["role"] == "admin" else ["Мой кабинет", "Архив", "Выйти"]
+if st.session_state.get("active_page") not in pages:
+    st.session_state.active_page = pages[0]
+with st.container(key="primary_navigation"):
+    active_page = st.radio("Раздел", pages, horizontal=True, key="active_page", label_visibility="collapsed", width="stretch")
 if "feedback" in st.session_state:
     st.success(st.session_state.pop("feedback"))
 
-if user["role"] == "admin":
-    tab_main, tab_restaurant, tab_archive, tab_exit = st.tabs(["Главная", "Ресторан", "Архив", "Выйти"])
-    with tab_main:
-        render_overview(data, months, "main", "Обзор месяца")
-    with tab_restaurant:
-        render_restaurant(data, months)
-else:
-    tab_main, tab_archive, tab_exit = st.tabs(["Мой кабинет", "Архив", "Выйти"])
-    with tab_main:
-        render_overview(data, months, "partner", "Мой кабинет")
-with tab_archive:
+if active_page in ("Главная", "Мой кабинет"):
+    render_overview(data, months, "main" if user["role"] == "admin" else "partner",
+                    "Обзор месяца" if user["role"] == "admin" else "Мой кабинет")
+elif active_page == "Ресторан" and user["role"] == "admin":
+    render_restaurant(data, months)
+elif active_page == "Архив":
     render_archive(data, months)
-with tab_exit:
+elif active_page == "Выйти":
     page_heading("Выход из кабинета", "Завершите сеанс на этом устройстве.")
     if st.button("Выйти из кабинета", type="primary"):
         st.session_state.clear()
