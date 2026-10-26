@@ -19,7 +19,7 @@ st.set_page_config(
 DATA_FILE = "data.json"
 
 try:
-    USERS = {login: dict(record) for login, record in st.secrets.get("dividends_accounts_v20261026", {}).items()}
+    USERS = {login: dict(record) for login, record in st.secrets.get("users", {}).items()}
 except (FileNotFoundError, st.errors.StreamlitSecretNotFoundError):
     USERS = {}
 
