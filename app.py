@@ -1229,6 +1229,7 @@ def render_restaurant(data, months):
                             st.session_state[f"profit_{context}"] = format_input_money(profit) if known else ""
                         profit_input = st.text_input("Чистая прибыль, ₽",
                                                      placeholder="Например, 1 000 000", key=f"profit_{context}")
+                        profit_silent = st.checkbox("Без уведомления о прибыли", key=f"profit_silent_{context}")
                         saved = st.form_submit_button("Сохранить прибыль", type="primary", width="stretch")
                         if saved:
                             amount = checked_amount(profit_input, allow_negative=True)
@@ -1237,8 +1238,9 @@ def render_restaurant(data, months):
                             else:
                                 set_profit(data, restaurant, month, amount)
                                 save_data(data)
-                                telegram_ok = notify_telegram_profit_saved(restaurant, month)
-                                flash("Прибыль сохранена. " + ("Telegram-уведомление отправлено." if telegram_ok else "Telegram-уведомление не отправлено."))
+                                telegram_ok = False if profit_silent else notify_telegram_profit_saved(restaurant, month)
+                                flash("Прибыль сохранена без уведомления." if profit_silent else
+                                      "Прибыль сохранена. " + ("Telegram-уведомление отправлено." if telegram_ok else "Telegram-уведомление не отправлено."))
 
             with withdrawal_column:
                 with st.container(key="withdrawal_panel"):
