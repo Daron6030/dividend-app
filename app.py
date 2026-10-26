@@ -6,37 +6,22 @@ import urllib.request
 import requests
 import base64
 from datetime import date
+from html import escape
+import re
 
 st.set_page_config(
-    page_title="Dividends Space",
+    page_title="Старик Хинкалыч · Dividends Space",
     page_icon="💼",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
 DATA_FILE = "data.json"
-GITHUB_BRANCH = "main"
 
-USERS = {
-    "Daron6030": {
-        "password": "Daron6030?",
-        "role": "admin",
-        "name": "Тарасенко Богдан",
-        "partner": "Тарасенко",
-    },
-    "Iadrov": {
-        "password": "181216",
-        "role": "partner",
-        "name": "Ядровы",
-        "partner": "Ядровы",
-    },
-    "Alisa": {
-        "password": "669933",
-        "role": "partner",
-        "name": "Тарасенко Алиса",
-        "partner": "Тарасенко",
-    },
-}
+try:
+    USERS = {login: dict(record) for login, record in st.secrets.get("dividends_accounts_v20261026", {}).items()}
+except (FileNotFoundError, st.errors.StreamlitSecretNotFoundError):
+    USERS = {}
 
 RESTAURANTS = {
     "Гончарная": {"Ядровы": 50, "Тарасенко": 50},
@@ -47,6 +32,10 @@ RESTAURANTS = {
 }
 
 SPORTIVNAYA_OLD_RULE_UNTIL = "2026-04"
+
+# Monthly accrual only. Actual withdrawals remain separate recorded operations.
+NAUKI_FIXED_START = "2026-10"
+NAUKI_FIXED_MONTHLY_AMOUNT = 1_000_000
 
 INITIAL_PROFITS = {
     "2025-10": {"Гончарная": 1400000, "Фонтанка": 490000, "Спортивная": 1280000, "Загородный": 650000, "Науки": 0},
@@ -61,446 +50,256 @@ CLOSED_MONTHS = set(INITIAL_PROFITS.keys())
 
 st.markdown("""
 <style>
-section[data-testid="stSidebar"] {display:none !important;}
-header[data-testid="stHeader"] {display:none !important;}
-
-.stApp {
-    background:#f6f7f9;
-    color:#111827;
+:root {--ink:#251d1c;--muted:#76706c;--accent:#691525;--line:#e7ded5;--paper:#faf7f2;--serif:Georgia,'Times New Roman',serif;}
+section[data-testid="stSidebar"],header[data-testid="stHeader"] {display:none!important;}
+.stApp {background:radial-gradient(ellipse at 95% 95%,#eee6d947,transparent 32%),var(--paper);color:var(--ink);}
+.block-container {max-width:1440px;padding:18px 60px 44px!important;}
+h1,h2,h3,h4 {font-family:var(--serif)!important;color:#40131b!important;letter-spacing:-.03em;}
+h3 {font-size:26px!important;font-weight:700!important;}
+p,label {color:var(--ink);}
+[data-testid="stCaptionContainer"],[data-testid="stCaptionContainer"] p,[data-testid="stCaption"] {color:var(--muted)!important;opacity:1!important;font-size:12px;}
+.app-header {display:flex;justify-content:space-between;align-items:center;gap:24px;min-height:64px;margin:0 0 14px;}
+.brand {display:flex;align-items:center;gap:13px;}
+.brand-mark {display:grid;place-items:center;width:50px;height:50px;flex-shrink:0;background:var(--accent);border-radius:15px;color:#fff;box-shadow:0 3px 8px #4b0e1610;}
+.brand-mark svg {width:34px;height:34px;}
+.app-title {font-family:var(--serif);font-size:23px;font-weight:700;letter-spacing:-.6px;line-height:1.15;}
+.brand-subtitle {font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:5px;}
+.app-user {display:flex;gap:11px;align-items:center;font-size:12px;font-weight:600;line-height:1.55;}
+.account-icon {display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#f1e9df;color:var(--accent);}
+.account-icon svg {width:22px;height:22px;}
+.user-role {font-size:11px;color:var(--muted);font-weight:400;}
+[data-testid="stTabs"] {position:relative;}
+[data-testid="stTabs"] [role="tablist"] {height:auto;gap:5px;padding:4px;background:#fff9;border:1px solid #e7ded599;border-radius:17px;margin-bottom:14px;width:fit-content;}
+button[data-baseweb="tab"] {min-height:43px;padding:9px 15px!important;border-radius:12px;color:var(--ink)!important;gap:8px;}
+button[data-baseweb="tab"] p {font-size:12px;font-weight:550;}
+button[data-baseweb="tab"][aria-selected="true"] {background:#f0e0d3;box-shadow:inset 0 0 0 1px #e3cdb9;color:var(--accent)!important;}
+button[data-baseweb="tab"][aria-selected="true"] p {color:var(--accent);font-weight:700;}
+button[data-baseweb="tab"]::before {content:'';display:block;width:17px;height:17px;background:currentColor;mask:var(--nav-icon) center/contain no-repeat;flex-shrink:0;}
+button[data-baseweb="tab"]:nth-of-type(1) {--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 11 12 3l9 8M5 10v11h5v-7h4v7h5V10' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+button[data-baseweb="tab"]:nth-of-type(2) {--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 3v7c0 3 6 3 6 0V3M7 3v18M19 3c-3 3-4 7-4 10h4m0-10v18' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+button[data-baseweb="tab"]:nth-of-type(3),body:has(.app-header[data-role="partner"]) button[data-baseweb="tab"]:nth-of-type(2) {--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 7V4h7l3 3h8v13H3V7Zm0 2h18' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+button[data-baseweb="tab"]:nth-of-type(4),body:has(.app-header[data-role="partner"]) button[data-baseweb="tab"]:nth-of-type(3) {--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 4H4v16h6m5-13 5 5-5 5m-7-5h12' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+[data-baseweb="tab-highlight"],[data-baseweb="tab-border"] {display:none;}
+.page-heading {position:relative;min-height:132px;display:flex;align-items:center;margin:0 0 8px;isolation:isolate;}
+.hero-copy {position:relative;z-index:1;padding:12px 0;max-width:64%;}
+.eyebrow {font-size:10px;letter-spacing:.19em;font-weight:700;color:var(--muted);margin-bottom:8px;}
+.page-title {font-family:var(--serif);font-size:48px;font-weight:700;color:#30151a;line-height:1.07;letter-spacing:-1.5px;}
+.page-description {font-size:14px;color:var(--muted);margin-top:10px;line-height:1.5;}
+.page-heading::after {content:'';position:absolute;z-index:0;right:-48px;top:-8px;width:59%;height:218px;pointer-events:none;background:var(--hero-image) right center/cover no-repeat;mask-image:linear-gradient(to right,transparent 0%,#000 23%,#000 92%,transparent);}
+.hero-overview {--hero-image:url('app/static/khinkalych/overview-hero.png');}
+.hero-restaurant {--hero-image:url('app/static/khinkalych/restaurant-etching.png');}
+.hero-restaurant::after {background-size:contain;width:49%;height:195px;top:0;opacity:.9;}
+.hero-archive::after,.hero-plain::after {display:none;}
+.hero-archive,.hero-plain {min-height:110px;}
+div[data-baseweb="input"],div[data-baseweb="select"]>div,textarea {background:#fffdfb!important;border-radius:11px!important;color:var(--ink)!important;border-color:#d9d2ca!important;}
+div[data-baseweb="select"]>div {min-height:44px;}
+input,textarea {color:var(--ink)!important;font-variant-numeric:tabular-nums;}
+input[type="text"],input[type="password"],textarea {background:#fffdfb!important;}
+[data-testid="stWidgetLabel"] p {font-size:13px;font-weight:600;}
+.stButton>button,.stDownloadButton>button,[data-testid="stFormSubmitButton"]>button {min-height:44px;border-radius:11px;border-color:#ddcfc2;font-weight:600;}
+button[kind="primary"],button[kind="primaryFormSubmit"] {background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important;}
+button[kind="primary"] p,button[kind="primaryFormSubmit"] p {color:#fff!important;font-weight:600;}
+button[kind="primary"]:hover,button[kind="primaryFormSubmit"]:hover {background:#4e0d1a!important;border-color:#4e0d1a!important;}
+button:focus-visible {outline:3px solid #ba8e68!important;outline-offset:3px;}
+[data-testid="stForm"] {border:1px solid var(--line);border-radius:17px;background:#fffcf8;padding:24px!important;}
+.form-heading {display:flex;align-items:center;justify-content:space-between;margin:0 0 14px;gap:14px;}
+.form-title {font:700 26px/1.15 var(--serif);letter-spacing:-.6px;color:#4d1721;}
+.form-illustration {color:#aa7863;opacity:.72;}
+.form-illustration svg {width:42px;height:42px;}
+.st-key-withdrawal_panel,.st-key-fixed_panel {border:1px solid var(--line);border-radius:17px;padding:24px;background:#fffcf8;}
+.st-key-withdrawal_panel .stButton>button {width:100%;}
+.st-key-editors [data-testid="stRadio"] [role="radiogroup"] {gap:8px;}
+.st-key-editors [data-testid="stRadio"] [role="radiogroup"] label {border:1px solid var(--line);border-radius:10px;padding:8px 9px;background:#f9f5ef;flex:1;}
+.st-key-editors [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) {background:#efe0d2;border-color:#ddc4ae;}
+.st-key-editors [data-testid="stRadio"] [role="radiogroup"] label p {font-size:12px;}
+.st-key-editors [data-testid="stCheckbox"] label p {font-size:12px;}
+.summary-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:0 0 10px;}
+.summary-item {position:relative;display:flex;gap:14px;min-width:0;padding:20px 17px;border:1px solid #eadccc;border-radius:15px;background:linear-gradient(115deg,#fffcf8,#f7eee3);overflow:hidden;}
+.summary-item:nth-child(2) {background:linear-gradient(115deg,#fffefa,#f0f0e5);border-color:#e1e1d2;}
+.summary-item:nth-child(3) {background:linear-gradient(115deg,#fffcfa,#f9ece6);border-color:#ecd8ce;}
+.summary-content {position:relative;z-index:1;}
+.summary-icon {width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;background:#ecd0b6;color:#6e3d20;}
+.summary-icon svg {width:25px;height:25px;}
+.summary-item:nth-child(2) .summary-icon {background:#e0e3cd;color:#535c38;}
+.summary-item:nth-child(3) .summary-icon {background:#f0d4ca;color:#762d29;}
+.summary-label {font-size:12px;font-weight:550;color:var(--ink);margin:1px 0 6px;}
+.summary-value {font-size:28px;font-weight:650;letter-spacing:-1px;font-variant-numeric:tabular-nums;line-height:1.2;}
+.summary-footnote {font-size:10px;color:var(--muted);margin-top:8px;}
+.summary-ornament {position:absolute;right:-10px;bottom:-18px;width:94px;height:100px;color:#b7956c;opacity:.17;transform:rotate(-20deg);}
+.summary-item:nth-child(2) .summary-ornament {color:#798556;}
+.summary-item:nth-child(3) .summary-ornament {color:#a75543;}
+.section-heading {display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 10px;}
+.section-title {font:700 25px/1.2 var(--serif);color:#3b1920;letter-spacing:-.5px;}
+.section-note {font-size:11px;color:var(--muted);}
+.cards-grid {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;}
+.mini-card {background:#fffcf9;border:1px solid #ede2d6;border-radius:15px;padding:7px;min-width:0;box-shadow:0 5px 16px #53382004;overflow:hidden;}
+.mini-card.selected {border-color:#8b4a28;box-shadow:0 0 0 1px #8b4a28;}
+.restaurant-image {display:block;width:100%;height:100px;object-fit:cover;border-radius:10px;}
+.mini-body {padding:11px 6px 5px;}
+.mini-head {display:flex;gap:7px;align-items:center;margin-bottom:13px;}
+.restaurant-symbol {display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#efe0ce;color:#783e23;flex-shrink:0;}
+.restaurant-symbol svg {width:16px;height:16px;}
+.mini-title {font-size:13px;font-weight:650;white-space:nowrap;}
+.mini-financials {display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px;}
+.mini-financials>div+div {border-left:1px solid #eee6dd;padding-left:8px;}
+.mini-label {font-size:10px;color:var(--muted);margin-bottom:4px;}
+.mini-money {font-size:13px;font-weight:650;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.partner-progress-row {display:grid;grid-template-columns:12px minmax(0,1fr);align-items:center;gap:5px;margin-top:7px;}
+.partner-letter {font-size:11px;font-weight:600;}
+.progress-wrap {position:relative;height:17px;background:#ebe8e3;border-radius:5px;overflow:hidden;}
+.progress-fill {height:100%;background:#c4cba9;}
+.progress-inside {position:absolute;inset:0;display:grid;place-items:center;font-size:9px;font-weight:650;color:#34362c;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.overpaid .progress-fill {background:#f2d4cb;}
+.overpaid .progress-inside,.negative {color:#9e2434!important;}
+.mini-small {border-top:1px solid #eee6dd;padding-top:8px;font-size:10px;color:var(--muted);margin-top:10px;}
+.mobile-only {display:none;}
+.cards-caption {font-size:11px;color:var(--muted);margin:10px 0 16px;}
+.partner-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:12px;}
+.partner-box {position:relative;background:#fffcf8;border:1px solid var(--line);border-radius:17px;padding:20px 22px;overflow:hidden;}
+.partner-heading {display:flex;gap:11px;align-items:center;margin-bottom:16px;}
+.partner-avatar {width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#e9ecd9;color:#4a4c33;font:700 20px var(--serif);flex-shrink:0;}
+.partner-avatar.blue {background:#f1ddcb;color:#743d2d;}
+.partner-title {font:700 21px var(--serif);color:#471b23;}
+.partner-subtitle {font-size:11px;color:var(--muted);margin-top:3px;}
+.partner-row {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;position:relative;z-index:1;}
+.partner-row>div+div {border-left:1px solid #eee6dd;padding-left:15px;}
+.partner-label {font-size:11px;color:var(--muted);margin-bottom:6px;}
+.partner-money {font-size:18px;font-weight:650;letter-spacing:-.4px;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.partner-note {margin-top:13px;border-top:1px solid #eee6dd;padding-top:9px;font-size:11px;color:var(--muted);}
+.partner-ornament {position:absolute;top:-10px;right:-10px;width:85px;color:#89925e;opacity:.17;transform:rotate(25deg);pointer-events:none;}
+.closed-badge,.pending-badge {display:inline-block;padding:5px 9px;border-radius:7px;background:#eceddf;color:#5c6244;font-size:11px;margin-bottom:5px;}
+.pending-badge {background:#f0e4d8;color:#76573f;}
+.today-panel {border:1px solid #dbdcc8;background:#f0f1e7;padding:18px;border-radius:16px;margin:4px 0 12px;}
+.today-title {font:700 22px var(--serif);margin-bottom:12px;}
+.today-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;}
+.today-card {background:#fffcf8;border:1px solid #e3e3d4;border-radius:10px;padding:12px;}
+.today-restaurant {font-size:12px;font-weight:650;margin-bottom:6px;}
+.today-line {font-size:12px;line-height:1.6;}
+.today-total {font-size:13px;font-weight:600;margin-top:12px;}
+.archive-main {display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;margin-bottom:10px;}
+.archive-detail {font-size:12px;color:var(--muted);line-height:1.8;}
+.history-row {display:flex;justify-content:space-between;align-items:center;gap:14px;}
+.history-date {font-size:13px;color:var(--muted);}
+.history-amount {font-size:20px;font-weight:650;}
+.preview-box {background:#f6eddf;border:1px solid #e7d4bf;border-radius:12px;padding:15px;margin:10px 0;}
+.preview-title {font-size:11px;color:#796450;margin-bottom:8px;}
+.preview-values {display:flex;gap:16px;flex-wrap:wrap;font-size:13px;}
+.st-key-login {max-width:460px;margin:55px auto 0;}
+.login-intro {text-align:center;padding:0 10px 18px;}
+.login-intro .brand-mark {margin:0 auto 16px;}
+.login-intro .page-title {font-size:36px;}
+.login-footer {text-align:center;font-size:11px;color:var(--muted);margin-top:15px;}
+@media(min-width:901px) {
+ button[data-baseweb="tab"] p {font-size:14px;}
+ .app-user {font-size:14px;}.user-role {font-size:12px;}
+ .summary-label {font-size:14px;}.summary-value {font-size:30px;}.summary-footnote {font-size:12px;}
+ .mini-title {font-size:14px;}.mini-label {font-size:12px;}.mini-money {font-size:16px;}
+ .progress-inside {font-size:11px;}.mini-small {font-size:11px;}
+ .cards-caption {font-size:12px;}.partner-label {font-size:12px;}.partner-money {font-size:20px;}
+ .partner-subtitle {font-size:12px;}.partner-note {font-size:12px;}
 }
-
-.block-container {
-    padding-top:1rem !important;
-    padding-left:1rem !important;
-    padding-right:1rem !important;
+@media(min-width:1150px) {
+ [data-testid="stTabs"] [role="tablist"] {position:absolute;top:-83px;left:50%;transform:translateX(-50%);z-index:2;margin:0;}
+ .st-key-editors [data-testid="stForm"] {min-height:410px;}
+ .st-key-editors [data-testid="stColumn"]:has([data-testid="stForm"])>div {height:100%;}
+ .st-key-editors [data-testid="stLayoutWrapper"]:has(>[data-testid="stForm"]) {flex:1;}
+ .st-key-editors [data-testid="stForm"] {flex:1;height:auto;}
+ .st-key-fixed_panel {min-height:280px;}
 }
-
-h1,h2,h3,h4,h5,h6,p,label {
-    color:#111827 !important;
+@media(max-width:1149px) {
+ .block-container {padding:18px 28px 40px!important;}
+ [data-testid="stTabs"] [role="tablist"] {width:100%;}
+ button[data-baseweb="tab"] {flex:1;justify-content:center;}
+ .page-title {font-size:41px;}
+ .hero-copy {max-width:65%;}
+ .hero-restaurant::after {width:43%;}
+ .summary-item {padding:16px 12px;gap:9px;}
+ .summary-icon {width:36px;height:36px;}
+ .mini-head {gap:4px;}
+ .mini-title {font-size:11px;}
+ .restaurant-symbol {width:20px;height:20px;}
+ .mini-money {font-size:11px;}
+ .partner-money {font-size:17px;}
 }
-
-.app-header {
-    background:#111827;
-    border-radius:22px;
-    padding:18px;
-    margin-bottom:16px;
-    box-shadow:0 10px 28px rgba(15,23,42,0.14);
-    text-align:center;
+@media(max-width:900px) {
+ .summary-icon {display:none;}
+ .summary-value {font-size:24px;}
+ .restaurant-image {height:72px;}
+ .restaurant-symbol {display:none;}
+ .mini-financials {grid-template-columns:1fr;gap:7px;}
+ .mini-financials>div+div {border:0;padding:0;}
+ .partner-grid {grid-template-columns:1fr;}
+ .hero-restaurant::after {opacity:.4;}
+ .st-key-withdrawal_panel,[data-testid="stForm"] {padding:17px!important;}
 }
-
-.app-title {
-    color:white !important;
-    font-size:24px;
-    font-weight:800;
-    text-align:center;
+@media(max-width:600px) {
+ .block-container {padding:14px 12px 32px!important;}
+ .app-header {gap:8px;min-height:48px;margin-bottom:4px;}
+ .brand {gap:8px;}
+ .brand-mark {width:37px;height:37px;border-radius:11px;}
+ .brand-mark svg {width:26px;height:26px;}
+ .app-title {font-size:17px;}
+ .brand-subtitle {font-size:7px;letter-spacing:.06em;}
+ .app-user {font-size:9px;max-width:90px;text-align:right;line-height:1.4;}
+ .account-icon {display:none;}.user-role {font-size:8px;}
+ [data-testid="stTabs"] [role="tablist"] {padding:3px;gap:2px;border-radius:12px;margin-bottom:0;}
+ button[data-baseweb="tab"] {padding:8px 3px!important;min-height:42px;gap:4px;}
+ button[data-baseweb="tab"] p {font-size:11px;}
+ button[data-baseweb="tab"]::before {width:14px;height:14px;}
+ .page-heading {min-height:112px;margin:0 0 4px;}
+ .hero-copy {max-width:100%;padding:14px 0;}
+ .eyebrow {font-size:8px;letter-spacing:.13em;margin-bottom:8px;}
+ .page-title {font-size:34px;letter-spacing:-1px;}
+ .page-description {font-size:12px;max-width:88%;line-height:1.5;margin-top:7px;}
+ .page-heading::after {height:118px;top:8px;right:-12px;width:47%;opacity:.14;mask-image:linear-gradient(to right,transparent,#000 50%);}
+ .hero-restaurant .page-title {font-size:31px;}
+ .summary-grid {gap:5px;margin-bottom:7px;}
+ .summary-item {padding:13px 9px;border-radius:11px;min-width:0;}
+ .summary-label {font-size:9px;min-height:24px;line-height:1.25;}
+ .summary-value {font-size:20px;letter-spacing:-.6px;}
+ .summary-footnote {font-size:8px;line-height:1.45;min-height:24px;margin-top:7px;}
+ .summary-ornament {width:60px;right:-20px;bottom:-40px;opacity:.1;}
+ .section-title {font-size:24px;}.section-note {font-size:9px;}
+ .cards-grid {gap:4px;}
+ .mini-card {padding:3px;border-radius:9px;}
+ .restaurant-image {height:39px;border-radius:6px;}
+ .mini-body {padding:8px 2px 4px;}
+ .mini-head {margin-bottom:10px;}
+ .mini-title {font-size:9px;}
+ .mini-financials {gap:7px;margin-bottom:9px;}
+ .mini-label {font-size:8px;margin-bottom:3px;}
+ .mini-money {font-size:10px;}
+ .partner-progress-row {grid-template-columns:7px minmax(0,1fr);gap:2px;margin-top:5px;}
+ .partner-letter {font-size:8px;}.progress-wrap {height:15px;border-radius:4px;}.progress-inside {font-size:7px;}
+ .mini-small {font-size:7.5px;margin-top:8px;padding-top:7px;}
+ .desktop-only {display:none;}.mobile-only {display:inline;}
+ .cards-caption {font-size:9px;line-height:1.6;margin:9px 0 12px;}
+ .partner-grid {gap:10px;}
+ .partner-box {padding:17px 13px;border-radius:14px;}
+ .partner-heading {margin-bottom:16px;}
+ .partner-title {font-size:21px;}
+ .partner-subtitle {font-size:10px;}.partner-avatar {width:38px;height:38px;}
+ .partner-row {gap:5px;}.partner-row>div+div {padding-left:8px;}
+ .partner-label {font-size:9px;}.partner-money {font-size:15px;letter-spacing:-.4px;}
+ .partner-note {font-size:10px;}
+ .form-title {font-size:25px;}.form-illustration svg {width:30px;height:30px;}
+ .st-key-withdrawal_panel,.st-key-fixed_panel,[data-testid="stForm"] {padding:16px!important;border-radius:14px;}
+ .st-key-editors [data-testid="stRadio"] [role="radiogroup"] label {flex-basis:100%;}
+ .today-grid {grid-template-columns:repeat(2,minmax(0,1fr));}
+ .archive-main {flex-wrap:wrap;align-items:flex-start;font-size:13px;}
+ .st-key-login {margin-top:28px;}
+ input,textarea {font-size:16px!important;}
 }
+@media(prefers-reduced-motion:reduce) {*,*::before,*::after {animation:none!important;transition:none!important;}}
 
-.app-user {
-    color:#d1d5db !important;
-    font-size:14px;
-    margin-top:6px;
-    text-align:center;
-}
-
-div[data-testid="stTabs"] div[role="tablist"] {
-    justify-content:center !important;
-    gap:18px !important;
-}
-
-button[data-baseweb="tab"] {
-    font-weight:700 !important;
-    color:#111827 !important;
-    font-size:18px !important;
-}
-
-input, textarea {
-    background:white !important;
-    color:#111827 !important;
-    border:1px solid #d1d5db !important;
-}
-
-div[data-baseweb="input"] input {
-    background:white !important;
-    color:#111827 !important;
-}
-
-div[data-baseweb="select"] > div {
-    background:white !important;
-    color:#111827 !important;
-    border:1px solid #d1d5db !important;
-    border-radius:13px !important;
-}
-
-div[data-baseweb="select"] span {
-    color:#111827 !important;
-}
-
-div[data-baseweb="select"] input {
-    opacity:0 !important;
-    width:0px !important;
-    min-width:0px !important;
-    caret-color:transparent !important;
-}
-
-div[data-baseweb="select"] svg {
-    color:#c7ccd3 !important;
-}
-
-.stButton > button,
-.stDownloadButton > button {
-    width:100%;
-    border-radius:12px;
-    background:white !important;
-    color:#111827 !important;
-    border:1px solid #d1d5db !important;
-    font-weight:650;
-    padding:10px 12px;
-}
-
-.stButton > button:hover,
-.stDownloadButton > button:hover {
-    background:#111827 !important;
-    color:white !important;
-    border:1px solid #111827 !important;
-}
-
-.cards-grid {
-    display:grid;
-    grid-template-columns:repeat(5, 1fr);
-    gap:8px;
-    width:100%;
-    margin-top:10px;
-    margin-bottom:18px;
-}
-
-.mini-card {
-    background:white;
-    border:1px solid #e5e7eb;
-    border-radius:14px;
-    padding:10px 8px;
-    box-shadow:0 6px 16px rgba(15,23,42,0.04);
-    min-height:145px;
-    overflow:hidden;
-}
-
-.mini-title {
-    font-size:13px;
-    font-weight:800;
-    color:#111827;
-    margin-bottom:7px;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-}
-
-.mini-label {
-    color:#6b7280;
-    font-size:10px;
-    line-height:1.1;
-    margin-top:4px;
-}
-
-.mini-money {
-    font-size:13px;
-    font-weight:800;
-    color:#111827;
-    line-height:1.15;
-    white-space:nowrap;
-}
-
-.partner-progress-row {
-    display:grid;
-    grid-template-columns:14px 1fr;
-    align-items:center;
-    gap:4px;
-    margin-top:5px;
-}
-
-.partner-letter {
-    font-size:10px;
-    font-weight:900;
-    color:#4b5563;
-}
-
-.progress-wrap {
-    position:relative;
-    width:100%;
-    height:16px;
-    background:#e5e7eb;
-    border-radius:999px;
-    overflow:hidden;
-}
-
-.progress-fill {
-    height:100%;
-    background:#22c55e;
-    border-radius:999px;
-}
-
-.progress-inside {
-    position:absolute;
-    inset:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:8.5px;
-    font-weight:800;
-    color:#111827;
-    white-space:nowrap;
-}
-
-.mini-small {
-    font-size:10px;
-    color:#4b5563;
-    line-height:1.25;
-    margin-top:5px;
-}
-
-.partner-box {
-    background:white;
-    border:1px solid #e5e7eb;
-    border-radius:18px;
-    padding:16px;
-    box-shadow:0 8px 18px rgba(15,23,42,0.04);
-    margin-bottom:14px;
-}
-
-.partner-title {
-    font-size:22px;
-    font-weight:800;
-    color:#111827;
-    margin-bottom:10px;
-}
-
-.partner-row {
-    display:grid;
-    grid-template-columns:repeat(3, 1fr);
-    gap:10px;
-}
-
-.partner-label {
-    font-size:12px;
-    color:#6b7280;
-    margin-bottom:4px;
-}
-
-.partner-money {
-    font-size:20px;
-    font-weight:800;
-    color:#111827;
-}
-
-.partner-note {
-    font-size:12px;
-    color:#6b7280;
-    margin-top:10px;
-}
-
-.closed-badge {
-    display:inline-block;
-    background:#ecfdf5;
-    color:#047857;
-    border:1px solid #a7f3d0;
-    border-radius:999px;
-    padding:5px 10px;
-    font-size:12px;
-    font-weight:700;
-    margin-bottom:8px;
-}
-
-.month-hint {
-    display:block;
-    color:#6b7280;
-    font-size:13px;
-    margin-top:-4px;
-    margin-bottom:12px;
-}
-
-.today-panel {
-    background:#ecfdf5;
-    border:1px solid #a7f3d0;
-    border-radius:18px;
-    padding:16px;
-    margin-bottom:18px;
-    box-shadow:0 8px 18px rgba(22,163,74,0.08);
-}
-
-.today-title {
-    font-size:22px;
-    font-weight:900;
-    color:#047857;
-    margin-bottom:10px;
-}
-
-.today-grid {
-    display:grid;
-    grid-template-columns:repeat(5, 1fr);
-    gap:8px;
-}
-
-.today-card {
-    background:white;
-    border:1px solid #bbf7d0;
-    border-radius:14px;
-    padding:10px;
-}
-
-.today-restaurant {
-    font-size:13px;
-    font-weight:900;
-    color:#064e3b;
-    margin-bottom:6px;
-}
-
-.today-line {
-    font-size:12px;
-    color:#065f46;
-    line-height:1.35;
-}
-
-.today-total {
-    margin-top:12px;
-    font-size:14px;
-    font-weight:900;
-    color:#047857;
-}
-
-.archive-detail {
-    font-size:12px;
-    color:rgba(17,24,39,0.48);
-    line-height:1.45;
-    margin-top:6px;
-}
-
-.chart-box {
-    background:white;
-    border:1px solid #e5e7eb;
-    border-radius:18px;
-    padding:14px;
-    box-shadow:0 8px 18px rgba(15,23,42,0.04);
-    overflow-x:auto;
-}
-
-@media (max-width:768px) {
-    .block-container {
-        padding-left:0.85rem !important;
-        padding-right:0.85rem !important;
-        padding-top:0.7rem !important;
-    }
-
-    .app-header {
-        padding:16px 12px;
-        border-radius:20px;
-        margin-bottom:14px;
-    }
-
-    .app-title {
-        font-size:22px;
-    }
-
-    .app-user {
-        font-size:13px;
-    }
-
-    div[data-testid="stTabs"] div[role="tablist"] {
-        justify-content:center !important;
-        gap:10px !important;
-    }
-
-    button[data-baseweb="tab"] {
-        font-size:16px !important;
-        padding-left:4px !important;
-        padding-right:4px !important;
-    }
-
-    h1 {
-        font-size:31px !important;
-        line-height:1.05 !important;
-        margin-bottom:4px !important;
-    }
-
-    h2 {
-        font-size:24px !important;
-    }
-
-    h3 {
-        font-size:20px !important;
-    }
-
-    .cards-grid {
-        gap:5px;
-    }
-
-    .mini-card {
-        padding:8px 5px;
-        border-radius:12px;
-        min-height:138px;
-    }
-
-    .mini-title {
-        font-size:10.5px;
-        margin-bottom:5px;
-    }
-
-    .mini-label {
-        font-size:8.5px;
-    }
-
-    .mini-money {
-        font-size:10.5px;
-    }
-
-    .partner-letter {
-        font-size:8.5px;
-    }
-
-    .progress-wrap {
-        height:14px;
-    }
-
-    .progress-inside {
-        font-size:7.2px;
-    }
-
-    .today-grid {
-        grid-template-columns:repeat(2, 1fr);
-    }
-
-    .today-title {
-        font-size:20px;
-    }
-
-    .today-restaurant {
-        font-size:12px;
-    }
-
-    .today-line {
-        font-size:11px;
-    }
-
-    .partner-box {
-        padding:13px;
-        border-radius:16px;
-    }
-
-    .partner-title {
-        font-size:20px;
-    }
-
-    .partner-money {
-        font-size:18px;
-    }
-
-    .partner-label {
-        font-size:11px;
-    }
-}
 </style>
 """, unsafe_allow_html=True)
 
 
 def money(value):
-    return f"{float(value):,.0f}".replace(",", " ") + " ₽"
+    number = float(value)
+    decimals = 0 if round(number, 2).is_integer() else 2
+    return f"{number:,.{decimals}f}".replace(",", " ").replace(".", ",") + " ₽"
 
 
 def format_input_money(value):
@@ -649,30 +448,28 @@ def apply_initial_profits(data):
                 })
 
 
-def github_headers():
-    token = st.secrets.get("GITHUB_TOKEN", "")
+def get_secret(key, default=""):
+    try:
+        return st.secrets.get(key, default)
+    except (FileNotFoundError, st.errors.StreamlitSecretNotFoundError):
+        return default
 
+
+def github_headers():
+    token = get_secret("GITHUB_TOKEN", "")
     if not token:
         return None
 
     return {
         "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28"
+        "Accept": "application/vnd.github+json"
     }
 
 
 def github_api_url():
-    repo = st.secrets.get("GITHUB_REPO", "")
-
+    repo = get_secret("GITHUB_REPO", "")
     if not repo:
         return None
-
-    repo = repo.replace("https://github.com/", "")
-    repo = repo.replace("http://github.com/", "")
-    repo = repo.replace("github.com/", "")
-    repo = repo.replace("/tree/main", "")
-    repo = repo.strip().strip("/")
 
     return f"https://api.github.com/repos/{repo}/contents/{DATA_FILE}"
 
@@ -685,12 +482,7 @@ def load_data_from_github():
         return None
 
     try:
-        response = requests.get(
-            api_url,
-            headers=headers,
-            params={"ref": GITHUB_BRANCH},
-            timeout=20
-        )
+        response = requests.get(api_url, headers=headers, timeout=20)
 
         if response.status_code != 200:
             return None
@@ -709,36 +501,15 @@ def save_data_to_github(json_content):
     headers = github_headers()
     api_url = github_api_url()
 
-    if not headers:
-        return False, "Нет GITHUB_TOKEN в Streamlit Secrets"
-
-    if not api_url:
-        return False, "Нет GITHUB_REPO в Streamlit Secrets"
+    if not headers or not api_url:
+        return False
 
     try:
-        current = requests.get(
-            api_url,
-            headers=headers,
-            params={"ref": GITHUB_BRANCH},
-            timeout=20
-        )
-
         sha = None
+        current = requests.get(api_url, headers=headers, timeout=20)
 
         if current.status_code == 200:
             sha = current.json().get("sha")
-
-        elif current.status_code == 401:
-            return False, "GitHub 401: неправильный токен"
-
-        elif current.status_code == 403:
-            return False, "GitHub 403: у токена нет прав на запись"
-
-        elif current.status_code == 404:
-            return False, f"GitHub 404: не найден repo/file. Проверь GITHUB_REPO. URL: {api_url}"
-
-        else:
-            return False, f"GitHub GET error {current.status_code}: {current.text}"
 
         encoded_content = base64.b64encode(
             json_content.encode("utf-8")
@@ -747,7 +518,7 @@ def save_data_to_github(json_content):
         payload = {
             "message": "Auto update data.json",
             "content": encoded_content,
-            "branch": GITHUB_BRANCH
+            "branch": "main"
         }
 
         if sha:
@@ -760,25 +531,11 @@ def save_data_to_github(json_content):
             timeout=20
         )
 
-        if result.status_code in [200, 201]:
-            return True, "GitHub save: OK"
-
-        if result.status_code == 401:
-            return False, "GitHub PUT 401: неправильный токен"
-
-        if result.status_code == 403:
-            return False, "GitHub PUT 403: у токена нет прав на запись"
-
-        if result.status_code == 404:
-            return False, f"GitHub PUT 404: repo/file/branch не найден. URL: {api_url}"
-
-        if result.status_code == 422:
-            return False, f"GitHub PUT 422: конфликт или неверная ветка. Ответ: {result.text}"
-
-        return False, f"GitHub PUT error {result.status_code}: {result.text}"
+        return result.status_code in [200, 201]
 
     except Exception as e:
-        return False, f"GitHub exception: {str(e)}"
+        print("GitHub save error:", e)
+        return False
 
 
 def load_data():
@@ -822,12 +579,7 @@ def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         f.write(json_content)
 
-    ok, message = save_data_to_github(json_content)
-
-    if ok:
-        st.toast("GitHub save: OK")
-    else:
-        st.error(message)
+    save_data_to_github(json_content)
 
 
 def all_months(data):
@@ -839,6 +591,7 @@ def all_months(data):
     for row in data["withdrawals"]:
         months.add(row["month"])
 
+    months.update(fixed_accrual_months())
     current = month_key(date.today())
 
     for offset in range(-12, 13):
@@ -864,8 +617,25 @@ def is_closed_month(month):
     return month in CLOSED_MONTHS
 
 
+def is_fixed_accrual(restaurant, month):
+    return normalize_restaurant_name(restaurant) == "Науки" and month >= NAUKI_FIXED_START
+
+
+def fixed_accrual_months(through_month=None):
+    """List elapsed/current months for the archive, never future payments."""
+    last_month = through_month or month_key(date.today())
+    result = []
+    month = NAUKI_FIXED_START
+    while month <= last_month:
+        result.append(month)
+        month = add_months(month, 1)
+    return result
+
+
 def get_profit(data, restaurant, month):
     restaurant = normalize_restaurant_name(restaurant)
+    if is_fixed_accrual(restaurant, month):
+        return NAUKI_FIXED_MONTHLY_AMOUNT
 
     for row in data["profits"]:
         if row["restaurant"] == restaurant and row["month"] == month:
@@ -876,6 +646,8 @@ def get_profit(data, restaurant, month):
 
 def set_profit(data, restaurant, month, amount):
     restaurant = normalize_restaurant_name(restaurant)
+    if is_fixed_accrual(restaurant, month):
+        raise ValueError("Начисление Науки фиксировано: 1 000 000 ₽ в месяц.")
 
     for row in data["profits"]:
         if row["restaurant"] == restaurant and row["month"] == month:
@@ -945,7 +717,7 @@ def get_today_payouts(data):
 
 
 def send_telegram_message(chat_id, text):
-    token = st.secrets.get("TELEGRAM_BOT_TOKEN", "")
+    token = get_secret("TELEGRAM_BOT_TOKEN", "")
 
     if not token or not chat_id:
         return False
@@ -969,9 +741,9 @@ def send_telegram_message(chat_id, text):
 def get_telegram_recipients():
     recipients = []
 
-    tarasenko_chat_id = st.secrets.get("TELEGRAM_CHAT_ID_TARASENKO", "")
-    yadrovy_chat_id = st.secrets.get("TELEGRAM_CHAT_ID_YADROVY", "")
-    alisa_chat_id = st.secrets.get("TELEGRAM_CHAT_ID_ALISA", "")
+    tarasenko_chat_id = get_secret("TELEGRAM_CHAT_ID_TARASENKO", "")
+    yadrovy_chat_id = get_secret("TELEGRAM_CHAT_ID_YADROVY", "")
+    alisa_chat_id = get_secret("TELEGRAM_CHAT_ID_ALISA", "")
 
     if tarasenko_chat_id:
         recipients.append(tarasenko_chat_id)
@@ -1109,659 +881,460 @@ def summary(data, restaurant, month):
     return profit, total_withdrawn, yadrovy, tarasenko, withdrawals
 
 
+RESTAURANT_COLORS = {restaurant: "#d4d4d8" for restaurant in RESTAURANTS}
+SHORT_NAMES = {
+    "Гончарная": "Гончар.", "Фонтанка": "Фонтанка", "Спортивная": "Спортив.",
+    "Загородный": "Загород.", "Науки": "Науки",
+}
+
+
+RESTAURANT_IMAGES = {
+    "Гончарная": "goncharnaya.png", "Фонтанка": "fontanka.png", "Спортивная": "sportivnaya.png",
+    "Загородный": "zagorodny.png", "Науки": "nauki.png",
+}
+
+
+def ui_icon(name):
+    paths = {
+        "khinkali": '<path d="M10 6c-2-4 6-4 4 0l-1 3c2 3 7 6 8 10 1 5-19 5-18 0 1-4 6-7 8-10Zm1 4c-2 4-4 6-4 10m5-10v11m1-11c2 4 4 6 4 10M9 5h6"/>',
+        "user": '<circle cx="12" cy="7" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3"/>',
+        "coins": '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 4 16 4 16 0V5M4 10c0 4 16 4 16 0M4 15c0 4 16 4 16 0"/>',
+        "arrow": '<path d="M5 19 19 5M6 5h13v13"/>',
+        "hourglass": '<path d="M6 3h12M6 21h12M7 3v3c0 3 10 9 10 12v3M17 3v3c0 3-10 9-10 12v3M9 18h6"/>',
+        "store": '<path d="M4 10v11h16V10M2 10l3-7h14l3 7c0 4-5 4-5 0 0 4-5 4-5 0 0 4-5 4-5 0 0 4-5 4-5 0ZM9 21v-7h6v7"/>',
+        "approval": '<path d="M7 3H4v19h16V3h-3M8 2h8v4H8ZM8 11h8M8 15h3m2 2 2 2 5-6"/>',
+        "payout": '<circle cx="12" cy="12" r="10"/><path d="M9 18V6h4a4 4 0 0 1 0 8H7m0 3h8"/>',
+    }
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths[name] + '</svg>'
+
+
+def leaf_ornament():
+    return '<svg viewBox="0 0 100 130" fill="currentColor" aria-hidden="true"><path d="M48 125C45 85 53 49 79 9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M50 110C21 111 13 91 16 82c23 1 32 14 34 28ZM48 89C23 86 20 66 23 58c22 5 28 18 25 31ZM53 65C30 59 32 37 38 29c18 11 21 23 15 36ZM65 40C48 29 52 10 61 3c12 13 14 26 4 37ZM49 105C76 107 86 87 83 78c-23 1-32 13-34 27ZM51 80C77 83 90 64 90 54c-23-2-35 10-39 26ZM61 54C84 57 98 41 98 30c-22-1-34 8-37 24Z"/></svg>'
+
+
+def form_heading(title, icon):
+    st.markdown(f'<div class="form-heading"><div class="form-title">{escape(title)}</div>'
+                f'<div class="form-illustration">{ui_icon(icon)}</div></div>', unsafe_allow_html=True)
+
+
+def compact_money(value):
+    value = float(value)
+    magnitude = abs(value)
+    if magnitude >= 1_000_000:
+        return f"{value / 1_000_000:.1f}".replace(".0", "").replace(".", ",") + "м"
+    if magnitude >= 1000:
+        return f"{value / 1000:.1f}".replace(".0", "").replace(".", ",") + "к"
+    return f"{value:,.2f}".rstrip("0").rstrip(".").replace(",", " ").replace(".", ",")
+
+
+def responsive_money(value):
+    return (f'<span class="desktop-only">{money(value)}</span>'
+            f'<span class="mobile-only" title="{money(value)}">{compact_money(value)}</span>')
+
+
+def profit_is_recorded(data, restaurant, month):
+    if is_fixed_accrual(restaurant, month):
+        return True
+    # Legacy zeroes for Науки mean missing history, not an approved zero profit.
+    if restaurant == "Науки" and month in CLOSED_MONTHS and get_profit(data, restaurant, month) == 0:
+        return False
+    return any(row["restaurant"] == restaurant and row["month"] == month for row in data["profits"])
+
+
+def page_heading(title, description, eyebrow="DIVIDENDS SPACE", kind="plain"):
+    st.markdown(f'<div class="page-heading hero-{kind}"><div class="hero-copy"><div class="eyebrow">{escape(eyebrow)}</div>'
+                f'<div class="page-title">{escape(title)}</div>'
+                f'<div class="page-description">{escape(description)}</div></div></div>', unsafe_allow_html=True)
+
+
 def render_header(user):
-    st.markdown(
-        f"""
-<div class="app-header">
-<div class="app-title">Dividends Space</div>
-<div class="app-user">{user["name"]}</div>
-</div>
-""",
-        unsafe_allow_html=True
-    )
+    role = "Администратор" if user["role"] == "admin" else "Просмотр финансов"
+    st.markdown(f'<div class="app-header" data-role="{escape(user["role"])}"><div class="brand"><div class="brand-mark">{ui_icon("khinkali")}</div>'
+                '<div><div class="app-title">Старик Хинкалыч</div>'
+                '<div class="brand-subtitle">Dividends Space · кабинет партнёров</div></div></div>'
+                f'<div class="app-user"><div class="account-icon">{ui_icon("user")}</div><div>{escape(user["name"])}'
+                f'<div class="user-role">{role}</div></div></div></div>', unsafe_allow_html=True)
 
 
 def render_today_payout_panel(data):
     payouts, totals = get_today_payouts(data)
-
     if not payouts:
         return
-
-    html = '''
-<div class="today-panel">
-<div class="today-title">Сегодня к выдаче</div>
-<div class="today-grid">
-'''
-
+    html = '<div class="today-panel"><div class="today-title">Сегодня к выдаче</div><div class="today-grid">'
     for restaurant, values in payouts.items():
-        html += f'''
-<div class="today-card">
-<div class="today-restaurant">{restaurant}</div>
-<div class="today-line">Ядровы: <b>{money(values["Ядровы"])}</b></div>
-<div class="today-line">Тарасенко: <b>{money(values["Тарасенко"])}</b></div>
-</div>
-'''
-
-    html += f'''
-</div>
-<div class="today-total">
-Итого сегодня — Ядровы: {money(totals["Ядровы"])} · Тарасенко: {money(totals["Тарасенко"])}
-</div>
-</div>
-'''
-
+        html += (f'<div class="today-card"><div class="today-restaurant">{escape(restaurant)}</div>'
+                 f'<div class="today-line">Ядровы <b>{money(values["Ядровы"])}</b></div>'
+                 f'<div class="today-line">Тарасенко <b>{money(values["Тарасенко"])}</b></div></div>')
+    html += (f'</div><div class="today-total">Итого · Ядровы {money(totals["Ядровы"])}'
+             f' · Тарасенко {money(totals["Тарасенко"])}</div></div>')
     st.markdown(html, unsafe_allow_html=True)
 
 
 def render_backup_button(data):
-    backup_data = json.dumps(data, ensure_ascii=False, indent=4)
-
-    st.download_button(
-        "Скачать резервную копию",
-        backup_data,
-        file_name="dividends_backup.json",
-        mime="application/json"
-    )
+    st.download_button("Скачать резервную копию", json.dumps(data, ensure_ascii=False, indent=4),
+                       file_name=f"dividends_backup_{date.today().isoformat()}.json", mime="application/json")
 
 
-def render_profit_chart(data, months):
-    months_with_data = []
-
-    for month in months:
-        total = sum(get_profit(data, restaurant, month) for restaurant in RESTAURANTS)
-        if total > 0:
-            months_with_data.append(month)
-
-    chart_months = list(reversed(months_with_data[:6]))
-
-    if not chart_months:
-        st.info("Пока нет данных для графика.")
-        return
-
-    restaurant_colors = {
-        "Гончарная": "#111827",
-        "Фонтанка": "#2563eb",
-        "Спортивная": "#16a34a",
-        "Загородный": "#f97316",
-        "Науки": "#9333ea",
-    }
-
-    width = 860
-    height = 280
-    left = 60
-    right = 30
-    top = 28
-    bottom = 52
-
-    values = []
-    for month in chart_months:
-        for restaurant in RESTAURANTS:
-            values.append(get_profit(data, restaurant, month))
-
-    max_value = max(values) if values else 1
-    if max_value <= 0:
-        max_value = 1
-
-    plot_width = width - left - right
-    plot_height = height - top - bottom
-
-    def x_pos(index):
-        if len(chart_months) == 1:
-            return left + plot_width / 2
-        return left + index * (plot_width / (len(chart_months) - 1))
-
-    def y_pos(value):
-        return top + plot_height - (value / max_value) * plot_height
-
-    svg = f'''
-<div class="chart-box">
-<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" xmlns="http://www.w3.org/2000/svg">
-<rect x="0" y="0" width="{width}" height="{height}" fill="white"/>
-'''
-
-    for i in range(5):
-        y = top + i * (plot_height / 4)
-        value = max_value - i * (max_value / 4)
-        svg += f'<line x1="{left}" y1="{y}" x2="{width-right}" y2="{y}" stroke="#e5e7eb" stroke-width="1"/>'
-        svg += f'<text x="8" y="{y+4}" font-size="11" fill="#6b7280">{int(value/1000)}к</text>'
-
-    for idx, month in enumerate(chart_months):
-        x = x_pos(idx)
-        svg += f'<text x="{x}" y="{height-20}" text-anchor="middle" font-size="11" fill="#6b7280">{month_label(month).split()[0]}</text>'
-
-    for restaurant, color in restaurant_colors.items():
-        points = []
-        for idx, month in enumerate(chart_months):
-            value = get_profit(data, restaurant, month)
-            points.append(f'{x_pos(idx)},{y_pos(value)}')
-
-        if len(points) > 1:
-            svg += f'<polyline points="{" ".join(points)}" fill="none" stroke="{color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
-
-        for idx, month in enumerate(chart_months):
-            value = get_profit(data, restaurant, month)
-            svg += f'<circle cx="{x_pos(idx)}" cy="{y_pos(value)}" r="3.5" fill="{color}"/>'
-
-    legend_x = left
-    legend_y = 14
-
-    for restaurant, color in restaurant_colors.items():
-        svg += f'<circle cx="{legend_x}" cy="{legend_y}" r="4" fill="{color}"/>'
-        svg += f'<text x="{legend_x + 8}" y="{legend_y + 4}" font-size="11" fill="#111827">{restaurant}</text>'
-        legend_x += 130
-
-    svg += '</svg></div>'
-
-    st.subheader("Динамика прибыли за 6 месяцев")
-    st.markdown(svg, unsafe_allow_html=True)
+def render_month_summary(data, month):
+    rows = [summary(data, restaurant, month) for restaurant in RESTAURANTS]
+    profit = sum(row[0] for row in rows)
+    withdrawn = sum(row[1] for row in rows)
+    approved = sum(profit_is_recorded(data, restaurant, month) for restaurant in RESTAURANTS)
+    values = [("Начислено по сети", profit if approved else None, f"Есть начисления: {approved} из {len(RESTAURANTS)} ресторанов", "coins"),
+              ("Выведено", withdrawn, "По всем ресторанам за месяц", "arrow"),
+              ("Остаток", profit - withdrawn if approved or withdrawn else None,
+               "Предварительный расчёт" if approved < 5 and not is_closed_month(month) else "Начислено минус выведено", "hourglass")]
+    html = '<div class="summary-grid">'
+    for label, value, note, icon in values:
+        negative = " negative" if value is not None and value < 0 else ""
+        html += (f'<div class="summary-item"><div class="summary-icon">{ui_icon(icon)}</div><div class="summary-content">'
+                 f'<div class="summary-label">{label}</div><div class="summary-value{negative}">{responsive_money(value) if value is not None else "—"}</div>'
+                 f'<div class="summary-footnote">{note}</div></div><div class="summary-ornament">{leaf_ornament()}</div></div>')
+    st.markdown(html + '</div>', unsafe_allow_html=True)
 
 
-def render_partner_progress(letter, accrued, withdrawn, balance):
-    if accrued > 0:
-        progress = min(max(withdrawn / accrued, 0), 1)
-    else:
-        progress = 0
-
-    progress_percent = round(progress * 100)
-
-    return f'''
-<div class="partner-progress-row">
-<div class="partner-letter">{letter}</div>
-<div class="progress-wrap">
-<div class="progress-fill" style="width:{progress_percent}%;"></div>
-<div class="progress-inside">{money(balance)}</div>
-</div>
-</div>
-'''
+def render_partner_progress(letter, accrued, withdrawn, balance, known=True):
+    progress = min(max(withdrawn / accrued, 0), 1) if accrued > 0 else 0
+    state = " overpaid" if balance < 0 else ""
+    label = f"{letter}: выведено {money(withdrawn)}, остаток {money(balance)}"
+    return (f'<div class="partner-progress-row{state}"><div class="partner-letter">{letter}</div>'
+            f'<div class="progress-wrap" role="img" aria-label="{label}" title="{label}">'
+            f'<div class="progress-fill" style="width:{progress * 100:.1f}%;"></div>'
+            f'<div class="progress-inside">{responsive_money(balance) if known or withdrawn else "—"}</div></div></div>')
 
 
-def render_all_restaurant_cards(data, month):
+def render_all_restaurant_cards(data, month, selected_restaurant):
     html = '<div class="cards-grid">'
-
     for restaurant in RESTAURANTS:
-        profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
-
-        y_accrued, y_withdrawn, y_balance, y_invest = yadrovy
-        t_accrued, t_withdrawn, t_balance, t_invest = tarasenko
-
-        closed_text = ""
-        if is_closed_month(month):
-            closed_text = '<div class="mini-small"><b>Закрыто</b></div>'
-
-        html += f'''
-<div class="mini-card">
-<div class="mini-title">{restaurant}</div>
-<div class="mini-label">Прибыль</div>
-<div class="mini-money">{money(profit)}</div>
-<div class="mini-label">Выведено</div>
-<div class="mini-money">{money(total)}</div>
-{render_partner_progress("Я", y_accrued, y_withdrawn, y_balance)}
-{render_partner_progress("Т", t_accrued, t_withdrawn, t_balance)}
-{closed_text}
-</div>
-'''
-
-    html += '</div>'
-    st.markdown(html, unsafe_allow_html=True)
+        profit, total, yadrovy, tarasenko, _ = summary(data, restaurant, month)
+        known = profit_is_recorded(data, restaurant, month)
+        fixed = is_fixed_accrual(restaurant, month)
+        status = "Фикс" if fixed else "Закрыто" if is_closed_month(month) and known else "Утверждено" if known else "Нет данных"
+        if restaurant == "Науки" and not fixed and not known:
+            status = "С окт. 26"
+        amount_label = "Начислено" if fixed else "Прибыль"
+        selected = " selected" if restaurant == selected_restaurant else ""
+        html += (f'<div class="mini-card{selected}" title="{restaurant}">'
+                 f'<img class="restaurant-image" src="app/static/khinkalych/{RESTAURANT_IMAGES[restaurant]}" alt="" loading="lazy" decoding="async">'
+                 f'<div class="mini-body"><div class="mini-head"><span class="restaurant-symbol">{ui_icon("store")}</span>'
+                 f'<div class="mini-title"><span class="desktop-only">{restaurant}</span><span class="mobile-only">{SHORT_NAMES[restaurant]}</span></div></div>'
+                 f'<div class="mini-financials"><div><div class="mini-label">{amount_label}</div><div class="mini-money">{responsive_money(profit) if known else "—"}</div></div>'
+                 f'<div><div class="mini-label">Выведено</div><div class="mini-money">{responsive_money(total)}</div></div></div>'
+                 f'{render_partner_progress("Я", *yadrovy[:3], known)}{render_partner_progress("Т", *tarasenko[:3], known)}'
+                 f'<div class="mini-small">{status}</div></div></div>')
+    st.markdown(html + '</div><div class="cards-caption">Я — Ядровы · Т — Тарасенко. '
+                'В полосах — остаток к выплате; заполнением показана выплаченная доля. '
+                '<span class="mobile-only">к — тыс. ₽, м — млн ₽. Точные суммы — ниже.</span></div>', unsafe_allow_html=True)
 
 
-def render_partner_details(yadrovy, tarasenko):
-    y_accrued, y_withdrawn, y_balance, invest_note = yadrovy
-    t_accrued, t_withdrawn, t_balance, _ = tarasenko
-
-    y_note = ""
-    if invest_note > 0:
-        y_note = f'<div class="partner-note">Из них {money(invest_note)} — возврат инвестиций.</div>'
-
-    st.markdown(
-        f'''
-<div class="partner-box">
-<div class="partner-title">Ядровы</div>
-<div class="partner-row">
-<div><div class="partner-label">Начислено</div><div class="partner-money">{money(y_accrued)}</div></div>
-<div><div class="partner-label">Выведено</div><div class="partner-money">{money(y_withdrawn)}</div></div>
-<div><div class="partner-label">Остаток</div><div class="partner-money">{money(y_balance)}</div></div>
-</div>
-{y_note}
-</div>
-
-<div class="partner-box">
-<div class="partner-title">Тарасенко</div>
-<div class="partner-row">
-<div><div class="partner-label">Начислено</div><div class="partner-money">{money(t_accrued)}</div></div>
-<div><div class="partner-label">Выведено</div><div class="partner-money">{money(t_withdrawn)}</div></div>
-<div><div class="partner-label">Остаток</div><div class="partner-money">{money(t_balance)}</div></div>
-</div>
-</div>
-''',
-        unsafe_allow_html=True
-    )
+def render_partner_details(yadrovy, tarasenko, known=True):
+    html = '<div class="partner-grid">'
+    for name, amounts, initials, color in [("Ядровы", yadrovy, "Я", ""), ("Тарасенко", tarasenko, "Т", " blue")]:
+        accrued, withdrawn, balance, invest = amounts
+        html += (f'<div class="partner-box"><div class="partner-ornament">{leaf_ornament()}</div><div class="partner-heading"><div class="partner-avatar{color}">{initials}</div>'
+                 f'<div><div class="partner-title">{name}</div><div class="partner-subtitle">Дивиденды за выбранный месяц</div></div></div>'
+                 '<div class="partner-row">')
+        for label, amount in [("Начислено", accrued), ("Выведено", withdrawn), ("Остаток", balance)]:
+            visible = known or label == "Выведено" or (label == "Остаток" and withdrawn > 0)
+            negative = " negative" if visible and amount < 0 else ""
+            html += f'<div><div class="partner-label">{label}</div><div class="partner-money{negative}">{money(amount) if visible else "—"}</div></div>'
+        html += '</div>'
+        notes = []
+        if invest > 0:
+            notes.append(f"В начислении учтён возврат инвестиций: {money(invest)}.")
+        if not known:
+            notes.append("Прибыль не утверждена. Остаток предварительный." if withdrawn else "Прибыль за этот период не указана.")
+        elif balance < 0:
+            notes.append(f"Выведено сверх начисления: {money(-balance)}.")
+        if notes:
+            html += '<div class="partner-note">' + ' '.join(notes) + '</div>'
+        html += '</div>'
+    st.markdown(html + '</div>', unsafe_allow_html=True)
 
 
-def render_archive_partner_details(yadrovy, tarasenko):
-    y_accrued, y_withdrawn, y_balance, invest_note = yadrovy
-    t_accrued, t_withdrawn, t_balance, _ = tarasenko
-
-    note = ""
-    if invest_note > 0:
-        note = f"<br>Возврат инвестиций Ядровых: {money(invest_note)}"
-
-    st.markdown(
-        f"""
-<div class="archive-detail">
-Ядровы — начислено: {money(y_accrued)}, выведено: {money(y_withdrawn)}, остаток: {money(y_balance)}{note}<br>
-Тарасенко — начислено: {money(t_accrued)}, выведено: {money(t_withdrawn)}, остаток: {money(t_balance)}
-</div>
-""",
-        unsafe_allow_html=True
-    )
-
-
-def select_month(key, months, default_month=None, label="Месяц"):
-    index = 0
-
-    if default_month and default_month in months:
-        index = months.index(default_month)
-
-    return st.selectbox(
-        label,
-        months,
-        index=index,
-        format_func=month_label,
-        key=key
-    )
+def select_month(key, months, default_month=None, label="Месяц прибыли"):
+    if key not in st.session_state:
+        st.session_state[key] = default_month if default_month in months else months[0]
+    return st.selectbox(label, months, format_func=month_label, key=key)
 
 
 def select_restaurant(key):
-    return st.selectbox(
-        "Ресторан",
-        list(RESTAURANTS.keys()),
-        key=key
-    )
+    return st.selectbox("Ресторан", list(RESTAURANTS), key=key)
+
+
+def render_overview(data, months, prefix, title):
+    page_heading(title, "Прибыль, выплаты и остатки — за выбранный месяц.", "ОБЗОР ФИНАНСОВ", kind="overview")
+    c1, c2 = st.columns(2)
+    with c1:
+        month = select_month(f"{prefix}_month", months, previous_month_key(date.today()))
+    with c2:
+        restaurant = select_restaurant(f"{prefix}_restaurant")
+    if is_closed_month(month):
+        st.markdown('<div class="closed-badge">Закрытый месяц · дивиденды выплачены</div>', unsafe_allow_html=True)
+    render_today_payout_panel(data)
+    render_month_summary(data, month)
+    st.markdown(f'<div class="section-heading"><div class="section-title">Рестораны</div>'
+                f'<div class="section-note">{month_label(month)}</div></div>', unsafe_allow_html=True)
+    render_all_restaurant_cards(data, month, restaurant)
+    st.markdown(f'<div class="section-heading"><div class="section-title">{restaurant} · партнёры</div></div>', unsafe_allow_html=True)
+    if is_fixed_accrual(restaurant, month):
+        st.caption("Науки · фиксированное начисление 1 000 000 ₽ в месяц: Ядровы — 500 000 ₽, Тарасенко — 500 000 ₽. Действует с октября 2026.")
+    _, _, yadrovy, tarasenko, _ = summary(data, restaurant, month)
+    render_partner_details(yadrovy, tarasenko, profit_is_recorded(data, restaurant, month))
+
+
+def display_date(value):
+    try:
+        return date.fromisoformat(value).strftime("%d.%m.%Y")
+    except (ValueError, TypeError):
+        return str(value or "Дата не указана")
+
+
+def render_withdrawal_row(row):
+    st.markdown(f'<div class="history-row"><div class="history-date">{escape(display_date(row.get("date")))}</div>'
+                f'<div class="history-amount">{money(row.get("amount", 0))}</div></div>', unsafe_allow_html=True)
+    # The legacy notify flag records intent, not successful delivery.
+    notification = "Telegram включён" if row.get("notify", True) else "Без уведомления"
+    st.caption(f'{row.get("mode", "")} · {notification}')
+    if row.get("comment"):
+        st.text(row["comment"])
+
+
+def render_archive(data, months):
+    page_heading("Архив", "История прибыли и выплат. Выберите год и раскройте нужный месяц.", "ФИНАНСОВАЯ ИСТОРИЯ", kind="archive")
+    available = sorted({row["month"] for row in data["profits"] + data["withdrawals"]} | set(fixed_accrual_months()), reverse=True)
+    years = sorted({m[:4] for m in available}, reverse=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        year = st.selectbox("Год", ["Все годы"] + years, key="archive_year")
+    with c2:
+        restaurant_filter = st.selectbox("Ресторан в архиве", ["Все рестораны"] + list(RESTAURANTS), key="archive_restaurant")
+    matching = [m for m in available if year == "Все годы" or m.startswith(year)]
+    restaurants = list(RESTAURANTS) if restaurant_filter == "Все рестораны" else [restaurant_filter]
+    if not matching:
+        st.info("За выбранный период данных пока нет.")
+    for i, month in enumerate(matching):
+        total = sum(get_profit(data, r, month) for r in restaurants)
+        status = " · Закрыт" if is_closed_month(month) else ""
+        with st.expander(f"{month_label(month)}{status} · {money(total)}", expanded=i == 0):
+            shown = False
+            for restaurant in restaurants:
+                profit, withdrawn, yadrovy, tarasenko, rows = summary(data, restaurant, month)
+                known = profit_is_recorded(data, restaurant, month)
+                if not known and not rows:
+                    continue
+                shown = True
+                with st.container(border=True):
+                    amount_label = "Фиксированное начисление" if is_fixed_accrual(restaurant, month) else "Прибыль"
+                    st.markdown(f'<div class="archive-main"><strong>{restaurant}</strong>'
+                                f'<span>{amount_label} <b>{money(profit) if known else "—"}</b> · Выведено <b>{money(withdrawn)}</b></span></div>', unsafe_allow_html=True)
+                    details = []
+                    for name, amounts in [("Ядровы", yadrovy), ("Тарасенко", tarasenko)]:
+                        accrued, paid, balance, invest = amounts
+                        details.append(f'{name} · начислено {money(accrued) if known else "—"} · выведено {money(paid)} · остаток {money(balance)}')
+                        if invest:
+                            details.append(f'В том числе возврат инвестиций: {money(invest)}')
+                    st.markdown('<div class="archive-detail">' + '<br>'.join(details) + '</div>', unsafe_allow_html=True)
+                    for row in sorted(rows, key=lambda row: row.get("date", ""), reverse=True):
+                        st.divider()
+                        render_withdrawal_row(row)
+            if is_closed_month(month):
+                st.caption("Исторические итоги. Даты выплат показаны только для операций, сохранённых в данных.")
+                if "Науки" in restaurants:
+                    st.caption("Науки: за этот период данные отсутствуют.")
+            if not shown:
+                st.info("По этому ресторану за месяц данных нет.")
+
+
+def checked_amount(text, allow_negative=False):
+    cleaned = str(text).replace(" ", "").replace("\u00a0", "").replace("\u202f", "").replace("₽", "").strip()
+    pattern = r"-?\d+" if allow_negative else r"\d+"
+    if not re.fullmatch(pattern, cleaned):
+        return None
+    return int(cleaned)
+
+
+def flash(message):
+    st.session_state["feedback"] = message
+    st.rerun()
+
+
+def render_restaurant(data, months):
+    page_heading("Работа с рестораном", "Утвердите прибыль или зарегистрируйте выплату партнёрам.", "УПРАВЛЕНИЕ ВЫПЛАТАМИ", kind="restaurant")
+    c1, c2 = st.columns(2)
+    with c1:
+        month = select_month("restaurant_month", months, previous_month_key(date.today()))
+    with c2:
+        restaurant = select_restaurant("restaurant_name")
+    st.caption("Месяц прибыли — за какой период заработаны деньги. Дата вывода указывается отдельно.")
+    render_month_summary(data, month)
+    profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
+    known = profit_is_recorded(data, restaurant, month)
+    context = f"{month}_{restaurant}"
+    fixed = is_fixed_accrual(restaurant, month)
+    closed = is_closed_month(month)
+    if closed:
+        st.info("Исторический месяц закрыт. Прибыль распределена и выплачена полностью.")
+    else:
+        status = "Фиксированное начисление · 500 000 ₽ каждому партнёру" if fixed else "Прибыль утверждена" if known else "Прибыль ещё не утверждена · выплаты по умолчанию 50/50"
+        st.markdown(f'<div class="{"closed-badge" if known else "pending-badge"}">{status}</div>', unsafe_allow_html=True)
+    st.caption(f"Начислено: {money(profit) if known else 'не указано'} · Выведено: {money(total)}")
+
+    if not closed:
+        with st.container(key="editors"):
+            profit_column, withdrawal_column = st.columns(2, gap="medium")
+            with profit_column:
+                if fixed:
+                    with st.container(key="fixed_panel"):
+                        form_heading("Фиксированное начисление", "coins")
+                        st.markdown('<div class="preview-box"><div class="preview-title">Науки · фикс с октября 2026</div>'
+                                    '<div class="preview-values"><span>Начислено за месяц <b>1 000 000 ₽</b></span>'
+                                    '<span>Ядровы <b>500 000 ₽</b></span><span>Тарасенко <b>500 000 ₽</b></span></div></div>', unsafe_allow_html=True)
+                        st.caption("Начисление автоматическое. Фактический вывод зарегистрируйте в блоке «Новый вывод» — он уменьшит остаток к выплате.")
+                else:
+                    with st.form(f"profit_form_{context}", enter_to_submit=False):
+                        form_heading("Утверждённая прибыль", "approval")
+                        st.caption(f"{restaurant} · {month_label(month)}")
+                        profit_input = st.text_input("Чистая прибыль, ₽", value=format_input_money(profit) if known else "",
+                                                     placeholder="Например, 1 000 000", key=f"profit_{context}")
+                        saved = st.form_submit_button("Сохранить прибыль", type="primary", width="stretch")
+                        if saved:
+                            amount = checked_amount(profit_input, allow_negative=True)
+                            if amount is None:
+                                st.error("Введите целую сумму в рублях. Нулевую прибыль укажите числом 0.")
+                            else:
+                                set_profit(data, restaurant, month, amount)
+                                save_data(data)
+                                telegram_ok = notify_telegram_profit_saved(restaurant, month)
+                                flash("Прибыль сохранена. " + ("Telegram-уведомление отправлено." if telegram_ok else "Telegram-уведомление не отправлено."))
+
+            with withdrawal_column:
+                with st.container(key="withdrawal_panel"):
+                    form_heading("Новый вывод", "payout")
+                    st.caption(f"{restaurant} · прибыль за {month_label(month).lower()}")
+                    revision = st.session_state.get(f"withdrawal_revision_{context}", 0)
+                    key = f"withdrawal_{context}_{revision}"
+                    c3, c4 = st.columns(2)
+                    with c3:
+                        withdrawal_date = st.date_input("Дата фактического вывода", date.today(), format="DD.MM.YYYY", key=f"{key}_date")
+                    with c4:
+                        withdrawal_input = st.text_input("Сумма вывода, ₽", placeholder="Например, 200 000", key=f"{key}_amount")
+                    amount = checked_amount(withdrawal_input)
+                    use_proportions = st.checkbox("Разделить по пропорциям ресторана", value=True, key=f"{key}_proportions")
+                    if use_proportions:
+                        if fixed:
+                            mode = "Фиксированное начисление"
+                            distribution = {"Ядровы": 50, "Тарасенко": 50}
+                            st.caption("Выплата из фиксированного начисления: Ядровы 50% · Тарасенко 50%.")
+                        else:
+                            mode = st.radio("Режим распределения", ["До утверждения прибыли", "После утверждения прибыли"],
+                                            index=1 if known else 0, horizontal=True, key=f"{key}_mode")
+                            distribution = {"Ядровы": 50, "Тарасенко": 50} if mode == "До утверждения прибыли" else get_distribution(restaurant, month)
+                            st.caption("Предварительная выплата: Ядровы 50% · Тарасенко 50%." if mode == "До утверждения прибыли" else
+                                       " · ".join(f"{name}: {percent:g}%" for name, percent in distribution.items()))
+                    else:
+                        partner = st.selectbox("Получатель всей суммы", ["Ядровы", "Тарасенко"], key=f"{key}_recipient")
+                        mode = f"Вся сумма: {partner}"
+                        distribution = {"Ядровы": 100 if partner == "Ядровы" else 0, "Тарасенко": 100 if partner == "Тарасенко" else 0}
+                    c5, c6 = st.columns(2)
+                    with c5:
+                        without_notification = st.checkbox("Без уведомлений", key=f"{key}_silent", help="Вывод сохранится в учёте, но сообщение в Telegram не отправится.")
+                    with c6:
+                        show_comment = st.checkbox("Добавить комментарий", key=f"{key}_comment_on")
+                    comment = st.text_input("Комментарий", placeholder="Например, оплата кредита", key=f"{key}_comment") if show_comment else ""
+                    if amount is not None and amount > 0:
+                        partners = distribution_to_partners(amount, distribution)
+                        st.markdown(f'<div class="preview-box"><div class="preview-title">Будет зарегистрировано · {display_date(withdrawal_date.isoformat())}</div>'
+                                    f'<div class="preview-values"><span>Ядровы <b>{money(partners["Ядровы"])}</b></span>'
+                                    f'<span>Тарасенко <b>{money(partners["Тарасенко"])}</b></span></div></div>', unsafe_allow_html=True)
+                        investment = amount * distribution.get("Возврат инвестиций", 0) / 100
+                        if investment:
+                            st.caption(f"В сумме Ядровых: {money(investment)} — возврат инвестиций.")
+                        if known and (partners["Ядровы"] > yadrovy[2] or partners["Тарасенко"] > tarasenko[2]):
+                            st.warning("Выплата превышает остаток одного из партнёров. После сохранения будет показан отрицательный остаток.")
+                    elif withdrawal_input:
+                        st.error("Введите положительную целую сумму в рублях, например 200 000.")
+                    if st.button("Зарегистрировать вывод", type="primary", width="stretch", key=f"{key}_save", disabled=amount is None or amount <= 0):
+                        data["withdrawals"].append({"date": withdrawal_date.isoformat(), "month": month, "restaurant": restaurant,
+                                                    "amount": amount, "mode": mode, "distribution": distribution,
+                                                    "notify": not without_notification, "comment": comment.strip()})
+                        save_data(data)
+                        telegram_ok = False if without_notification else notify_telegram_withdrawal(restaurant, month)
+                        st.session_state[f"withdrawal_revision_{context}"] = revision + 1
+                        message = "Вывод сохранён без уведомления." if without_notification else (
+                            "Вывод сохранён. Telegram-уведомление отправлено." if telegram_ok else "Вывод сохранён. Telegram-уведомление не отправлено.")
+                        flash(message)
+
+    st.subheader("Баланс партнёров")
+    render_partner_details(yadrovy, tarasenko, known)
+    st.subheader("История выводов")
+    st.caption(f"{month_label(month)} · {len(withdrawals)} операций · выведено {money(total)}")
+    if not withdrawals:
+        st.info("Исторический итог сохранён; отдельных операций в данных нет." if closed else "Выводов пока нет. Новая операция появится здесь после сохранения.")
+    for index, row in sorted(enumerate(withdrawals), key=lambda pair: pair[1].get("date", ""), reverse=True):
+        with st.container(border=True):
+            render_withdrawal_row(row)
+            if not closed:
+                delete_key = f"delete_{context}_{index}"
+                if st.button("Удалить…", key=delete_key):
+                    st.session_state["pending_delete"] = delete_key
+                if st.session_state.get("pending_delete") == delete_key:
+                    st.warning(f'Удалить вывод {money(row["amount"])} от {display_date(row.get("date"))}? Остатки будут пересчитаны.')
+                    c7, c8 = st.columns(2)
+                    if c7.button("Подтвердить удаление", key=f"{delete_key}_confirm", type="primary"):
+                        data["withdrawals"].pop(data["withdrawals"].index(row))
+                        save_data(data)
+                        st.session_state.pop("pending_delete", None)
+                        flash("Вывод удалён. Остатки пересчитаны.")
+                    if c8.button("Отмена", key=f"{delete_key}_cancel"):
+                        st.session_state.pop("pending_delete", None)
+                        st.rerun()
+    with st.expander("Резервная копия данных"):
+        st.caption("Все месяцы, рестораны и операции в одном файле JSON.")
+        render_backup_button(data)
 
 
 if "user" not in st.session_state:
     st.session_state.user = None
 
-
 if st.session_state.user is None:
-    st.title("Dividends Space")
-    st.caption("Кабинет распределения дивидендов")
-
-    login = st.text_input("Логин")
-    password = st.text_input("Пароль", type="password")
-
-    if st.button("Войти"):
-        if login in USERS and USERS[login]["password"] == password:
-            st.session_state.user = USERS[login]
-            st.rerun()
-        else:
-            st.error("Неверный логин или пароль")
-
+    with st.container(key="login"):
+        st.markdown(f'<div class="login-intro"><div class="brand-mark">{ui_icon("khinkali")}</div>'
+                    '<div class="page-title">Старик Хинкалыч</div>'
+                    '<div class="page-description">Прибыль ресторанов. Выплаты партнёрам.<br>Всё в одном кабинете.</div></div>', unsafe_allow_html=True)
+        with st.form("login_form"):
+            login = st.text_input("Логин", placeholder="Ваш логин")
+            password = st.text_input("Пароль", type="password", placeholder="Ваш пароль")
+            if st.form_submit_button("Войти в кабинет", type="primary", width="stretch"):
+                if login in USERS and USERS[login]["password"] == password:
+                    st.session_state.user = USERS[login]
+                    st.rerun()
+                else:
+                    st.error("Неверный логин или пароль. Проверьте введённые данные.")
+        st.markdown('<div class="login-footer">Старик Хинкалыч · Dividends Space</div>', unsafe_allow_html=True)
     st.stop()
-
 
 user = st.session_state.user
 data = load_data()
 months = all_months(data)
-
-default_main_month = previous_month_key(date.today())
-default_work_month = previous_month_key(date.today())
-
 render_header(user)
+if "feedback" in st.session_state:
+    st.success(st.session_state.pop("feedback"))
 
 if user["role"] == "admin":
-    tab_main, tab_restaurant, tab_archive, tab_exit = st.tabs(
-        ["Главная", "Ресторан", "Архив", "Выйти"]
-    )
-else:
-    tab_main, tab_archive, tab_exit = st.tabs(
-        ["Мой кабинет", "Архив", "Выйти"]
-    )
-
-
-if user["role"] == "partner":
+    tab_main, tab_restaurant, tab_archive, tab_exit = st.tabs(["Главная", "Ресторан", "Архив", "Выйти"])
     with tab_main:
-        st.title("Мой кабинет")
-
-        month = select_month("partner_month", months, default_main_month)
-        selected_restaurant = select_restaurant("partner_restaurant")
-
-        if is_closed_month(month):
-            st.markdown(
-                '<div class="closed-badge">Закрытый месяц — распределено полностью</div>',
-                unsafe_allow_html=True
-            )
-
-        render_today_payout_panel(data)
-
-        st.subheader("Все заведения за месяц")
-        render_all_restaurant_cards(data, month)
-
-        st.subheader(f"Партнеры — {selected_restaurant}")
-        profit, total, yadrovy, tarasenko, withdrawals = summary(data, selected_restaurant, month)
-        render_partner_details(yadrovy, tarasenko)
-
-        st.divider()
-        render_profit_chart(data, months)
-
-    with tab_archive:
-        st.title("Архив")
-
-        for month in months:
-            month_has_profit = any(get_profit(data, restaurant, month) > 0 for restaurant in RESTAURANTS)
-            month_has_withdrawals = any(len(get_withdrawals(data, restaurant, month)) > 0 for restaurant in RESTAURANTS)
-
-            if not month_has_profit and not month_has_withdrawals and not is_closed_month(month):
-                continue
-
-            st.subheader(month_label(month))
-
-            if is_closed_month(month):
-                st.markdown(
-                    '<div class="closed-badge">Закрытый месяц — распределено полностью</div>',
-                    unsafe_allow_html=True
-                )
-
-            for restaurant in RESTAURANTS:
-                profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
-
-                if profit == 0 and total == 0 and not is_closed_month(month):
-                    continue
-
-                with st.container(border=True):
-                    c1, c2, c3 = st.columns(3)
-                    c1.write(f"**{restaurant}**")
-                    c2.write(f"Прибыль: **{money(profit)}**")
-                    c3.write(f"Выведено: **{money(total)}**")
-
-                    render_archive_partner_details(yadrovy, tarasenko)
-
-                    if withdrawals and not is_closed_month(month):
-                        for row in withdrawals:
-                            notify_text = "уведомление отправлялось" if row.get("notify", True) else "без уведомления"
-                            comment_text = f" · Комментарий: {row.get('comment', '')}" if row.get("comment", "") else ""
-                            st.caption(
-                                f"Дата вывода: {row.get('date', '')} · "
-                                f"Сумма: {money(row.get('amount', 0))} · "
-                                f"{row.get('mode', '')} · {notify_text}"
-                                f"{comment_text}"
-                            )
-
-    with tab_exit:
-        if st.button("Выйти из кабинета"):
-            st.session_state.user = None
-            st.rerun()
-
-    st.stop()
-
-
-with tab_main:
-    st.title("Главная")
-
-    month = select_month("main_month", months, default_main_month)
-    selected_restaurant = select_restaurant("main_restaurant")
-
-    if is_closed_month(month):
-        st.markdown(
-            '<div class="closed-badge">Закрытый месяц — распределено полностью</div>',
-            unsafe_allow_html=True
-        )
-
-    render_today_payout_panel(data)
-
-    st.subheader("Все заведения за месяц")
-    render_all_restaurant_cards(data, month)
-
-    st.subheader(f"Партнеры — {selected_restaurant}")
-    profit, total, yadrovy, tarasenko, withdrawals = summary(data, selected_restaurant, month)
-    render_partner_details(yadrovy, tarasenko)
-
-    st.divider()
-    render_profit_chart(data, months)
-
-
-with tab_restaurant:
-    st.title("Ресторан")
-    st.caption("Детальный просмотр и ввод данных")
-
-    render_backup_button(data)
-    st.divider()
-
-    c1, c2 = st.columns(2)
-
-    with c1:
-        month = select_month(
-            "restaurant_month",
-            months,
-            default_work_month,
-            label="Месяц прибыли"
-        )
-        st.markdown(
-            '<span class="month-hint">Это месяц, за который распределяется прибыль. Например: в мае можно вывести деньги за апрель.</span>',
-            unsafe_allow_html=True
-        )
-
-    with c2:
-        restaurant = select_restaurant("restaurant_name")
-
-    if is_closed_month(month):
-        st.markdown(
-            '<div class="closed-badge">Закрытый месяц — распределено полностью</div>',
-            unsafe_allow_html=True
-        )
-
-    profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
-
-    st.subheader("Прибыль месяца")
-
-    profit_input = st.text_input(
-        "Утвержденная прибыль",
-        value=format_input_money(profit) if profit > 0 else "",
-        placeholder="например 1 000 000"
-    )
-
-    new_profit = parse_money(profit_input)
-
-    if st.button("Сохранить прибыль"):
-        set_profit(data, restaurant, month, new_profit)
-        save_data(data)
-
-        telegram_ok = notify_telegram_profit_saved(
-            restaurant=restaurant,
-            month=month
-        )
-
-        if telegram_ok:
-            st.success("Прибыль сохранена. Telegram-уведомление отправлено.")
-        else:
-            st.success("Прибыль сохранена. Telegram-уведомление пока не отправлено.")
-
-        st.rerun()
-
-    st.divider()
-
-    st.subheader("Добавить вывод")
-
-    c3, c4 = st.columns(2)
-
-    with c3:
-        withdrawal_date = st.date_input("Дата фактического вывода", value=date.today())
-
-    with c4:
-        withdrawal_input = st.text_input(
-            "Сумма вывода",
-            value="",
-            placeholder="например 200 000"
-        )
-
-    withdrawal_amount = parse_money(withdrawal_input)
-
-    without_notification = st.checkbox(
-        "Без уведомлений",
-        value=False
-    )
-
-    use_proportions = st.checkbox(
-        "Разделить по пропорциям ресторана",
-        value=True
-    )
-
-    manual_partner = st.selectbox(
-        "Если не по пропорциям — кому зачислить всю сумму",
-        ["Ядровы", "Тарасенко"],
-        disabled=use_proportions
-    )
-
-    show_comment = st.checkbox(
-        "Добавить комментарий",
-        value=False
-    )
-
-    withdrawal_comment = ""
-
-    if show_comment:
-        withdrawal_comment = st.text_input(
-            "Комментарий",
-            value="",
-            placeholder="Например: кредит, закупка, перевод партнеру"
-        )
-
-    if use_proportions:
-        default_mode = "После утверждения прибыли" if profit > 0 else "До утверждения прибыли"
-
-        mode = st.radio(
-            "Режим распределения",
-            ["До утверждения прибыли", "После утверждения прибыли"],
-            index=0 if default_mode == "До утверждения прибыли" else 1
-        )
-    else:
-        mode = f"Вся сумма: {manual_partner}"
-
-    if st.button("Добавить вывод"):
-        if withdrawal_amount <= 0:
-            st.error("Введите сумму вывода")
-        else:
-            if use_proportions:
-                if mode == "До утверждения прибыли":
-                    distribution = {"Ядровы": 50, "Тарасенко": 50}
-                else:
-                    distribution = get_distribution(restaurant, month)
-            else:
-                if manual_partner == "Ядровы":
-                    distribution = {"Ядровы": 100, "Тарасенко": 0}
-                else:
-                    distribution = {"Ядровы": 0, "Тарасенко": 100}
-
-            data["withdrawals"].append({
-                "date": withdrawal_date.strftime("%Y-%m-%d"),
-                "month": month,
-                "restaurant": restaurant,
-                "amount": withdrawal_amount,
-                "mode": mode,
-                "distribution": distribution,
-                "notify": not without_notification,
-                "comment": withdrawal_comment.strip()
-            })
-
-            save_data(data)
-
-            if without_notification:
-                st.success("Вывод добавлен без Telegram-уведомления.")
-            else:
-                telegram_ok = notify_telegram_withdrawal(
-                    restaurant=restaurant,
-                    month=month
-                )
-
-                if telegram_ok:
-                    st.success("Вывод добавлен. Telegram-уведомление отправлено.")
-                else:
-                    st.success("Вывод добавлен. Telegram-уведомление пока не отправлено.")
-
-            st.rerun()
-
-    st.divider()
-
-    st.subheader(f"Партнеры — {restaurant}")
-    render_partner_details(yadrovy, tarasenko)
-
-    st.subheader("Выводы за месяц прибыли")
-
-    if is_closed_month(month):
-        st.info("Этот месяц закрыт: все дивиденды распределены и выведены полностью.")
-    elif not withdrawals:
-        st.info("Выводов пока нет")
-    else:
-        for index, row in enumerate(withdrawals):
-            with st.container(border=True):
-                c5, c6, c7, c8 = st.columns([2, 2, 3, 1])
-
-                notify_text = "уведомление отправлялось" if row.get("notify", True) else "без уведомления"
-                comment = row.get("comment", "")
-
-                c5.write(f"**Дата вывода:** {row['date']}")
-                c6.write(f"**Сумма:** {money(row['amount'])}")
-                c7.write(f"**Режим:** {row.get('mode', '')}")
-
-                if comment:
-                    st.caption(f"{notify_text} · Комментарий: {comment}")
-                else:
-                    st.caption(notify_text)
-
-                if c8.button("Удалить", key=f"delete_month_{index}"):
-                    original_index = data["withdrawals"].index(row)
-                    data["withdrawals"].pop(original_index)
-                    save_data(data)
-                    st.success("Вывод удален")
-                    st.rerun()
-
-
+        render_overview(data, months, "main", "Обзор месяца")
+    with tab_restaurant:
+        render_restaurant(data, months)
+else:
+    tab_main, tab_archive, tab_exit = st.tabs(["Мой кабинет", "Архив", "Выйти"])
+    with tab_main:
+        render_overview(data, months, "partner", "Мой кабинет")
 with tab_archive:
-    st.title("Архив")
-
-    for month in months:
-        month_has_profit = any(get_profit(data, restaurant, month) > 0 for restaurant in RESTAURANTS)
-        month_has_withdrawals = any(len(get_withdrawals(data, restaurant, month)) > 0 for restaurant in RESTAURANTS)
-
-        if not month_has_profit and not month_has_withdrawals and not is_closed_month(month):
-            continue
-
-        st.subheader(month_label(month))
-
-        if is_closed_month(month):
-            st.markdown(
-                '<div class="closed-badge">Закрытый месяц — распределено полностью</div>',
-                unsafe_allow_html=True
-            )
-
-        for restaurant in RESTAURANTS:
-            profit, total, yadrovy, tarasenko, withdrawals = summary(data, restaurant, month)
-
-            if profit == 0 and total == 0 and not is_closed_month(month):
-                continue
-
-            with st.container(border=True):
-                c1, c2, c3 = st.columns(3)
-                c1.write(f"**{restaurant}**")
-                c2.write(f"Прибыль: **{money(profit)}**")
-                c3.write(f"Выведено: **{money(total)}**")
-
-                render_archive_partner_details(yadrovy, tarasenko)
-
-                if withdrawals and not is_closed_month(month):
-                    for row in withdrawals:
-                        notify_text = "уведомление отправлялось" if row.get("notify", True) else "без уведомления"
-                        comment_text = f" · Комментарий: {row.get('comment', '')}" if row.get("comment", "") else ""
-                        st.caption(
-                            f"Дата вывода: {row.get('date', '')} · "
-                            f"Сумма: {money(row.get('amount', 0))} · "
-                            f"{row.get('mode', '')} · {notify_text}"
-                            f"{comment_text}"
-                        )
-
-
+    render_archive(data, months)
 with tab_exit:
-    if st.button("Выйти из кабинета"):
-        st.session_state.user = None
+    page_heading("Выход из кабинета", "Завершите сеанс на этом устройстве.")
+    if st.button("Выйти из кабинета", type="primary"):
+        st.session_state.clear()
         st.rerun()
