@@ -122,12 +122,26 @@ class TelegramLinkService:
 
     def start(self):
         with self.worker_lock:
+            if self.stop.is_set():
+                raise LinkError('Подключение Telegram обновляется. Обновите страницу кабинета.')
             if self.thread and self.thread.is_alive():
                 return
+            # Streamlit unloads watched modules during deployment but leaves their
+            # daemon threads alive. Retire our previous poller before replacing it.
+            identity = hashlib.sha256(self.bot_token.encode()).hexdigest()
+            for worker in threading.enumerate():
+                if getattr(worker, 'dividends_link_identity', None) != identity:
+                    continue
+                worker.dividends_stop_event.set()
+                worker.join(timeout=27)
+                if worker.is_alive():
+                    raise LinkError('Подключение Telegram обновляется. Проверим его ещё раз через несколько секунд.')
             self.username = self.api('getMe')['username']
             if self.api('getWebhookInfo').get('url'):
                 raise LinkError('У бота уже настроена другая интеграция. Администратору нужно проверить её перед подключением.')
             self.thread = threading.Thread(target=self._run, name='dividends-telegram-links', daemon=True)
+            self.thread.dividends_link_identity = identity
+            self.thread.dividends_stop_event = self.stop
             self.thread.start()
 
     def begin(self, login):
