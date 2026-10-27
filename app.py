@@ -1,4 +1,5 @@
 import streamlit as st
+from telegram_link import LinkError, get_service as get_telegram_link_service
 import json
 import os
 import urllib.parse
@@ -762,27 +763,33 @@ def send_telegram_message(chat_id, text):
         return False
 
 
-def get_telegram_recipients():
+def get_telegram_recipients(withdrawal=None):
     recipients = []
+    st.session_state['_telegram_delivery_error'] = False
+    bindings = {}
+    allowed = None
+    if withdrawal:
+        distribution = ({'Ядровы': 50, 'Тарасенко': 50} if withdrawal.get('mode') == 'До утверждения прибыли'
+                        else withdrawal.get('distribution') or get_distribution(withdrawal['restaurant'], withdrawal['month']))
+        allowed = {partner for partner, value in distribution_to_partners(withdrawal['amount'], distribution).items() if value > 0}
+    if get_secret('GITHUB_TOKEN', '') and get_secret('GITHUB_REPO', '') and get_secret('TELEGRAM_BOT_TOKEN', ''):
+        try:
+            state = telegram_service().state(fresh=True)
+            bindings = state['bindings']
+            for login, binding in bindings.items():
+                account = USERS.get(login, {})
+                if account.get('role') == 'partner' and (allowed is None or account.get('partner') in allowed):
+                    recipients.append(str(binding['chat_id']))
+        except LinkError:
+            st.session_state['_telegram_delivery_error'] = True
+    for secret, partner, login in [('TELEGRAM_CHAT_ID_TARASENKO', None, None), ('TELEGRAM_CHAT_ID_YADROVY', 'Ядровы', 'Iadrov'), ('TELEGRAM_CHAT_ID_ALISA', 'Тарасенко', 'Alisa')]:
+        chat_id = get_secret(secret, '')
+        if chat_id and login not in bindings and (partner is None or allowed is None or partner in allowed):
+            recipients.append(str(chat_id))
+    return list(dict.fromkeys(recipients))
 
-    tarasenko_chat_id = get_secret("TELEGRAM_CHAT_ID_TARASENKO", "")
-    yadrovy_chat_id = get_secret("TELEGRAM_CHAT_ID_YADROVY", "")
-    alisa_chat_id = get_secret("TELEGRAM_CHAT_ID_ALISA", "")
-
-    if tarasenko_chat_id:
-        recipients.append(tarasenko_chat_id)
-
-    if yadrovy_chat_id:
-        recipients.append(yadrovy_chat_id)
-
-    if alisa_chat_id:
-        recipients.append(alisa_chat_id)
-
-    return recipients
-
-
-def notify_telegram_withdrawal(restaurant, month):
-    recipients = get_telegram_recipients()
+def notify_telegram_withdrawal(restaurant, month, withdrawal=None):
+    recipients = get_telegram_recipients(withdrawal)
 
     if not recipients:
         return False
@@ -796,7 +803,7 @@ def notify_telegram_withdrawal(restaurant, month):
         "📲 Подробности доступны в личном кабинете."
     )
 
-    ok = True
+    ok = not st.session_state.get('_telegram_delivery_error', False)
 
     for chat_id in recipients:
         sent = send_telegram_message(chat_id, text)
@@ -821,7 +828,7 @@ def notify_telegram_profit_saved(restaurant, month):
         "📲 Подробности доступны в личном кабинете."
     )
 
-    ok = True
+    ok = not st.session_state.get('_telegram_delivery_error', False)
 
     for chat_id in recipients:
         sent = send_telegram_message(chat_id, text)
@@ -1298,7 +1305,7 @@ def render_restaurant(data, months):
                                                     "amount": amount, "mode": mode, "distribution": distribution,
                                                     "notify": not without_notification, "comment": comment.strip()})
                         save_data(data)
-                        telegram_ok = False if without_notification else notify_telegram_withdrawal(restaurant, month)
+                        telegram_ok = False if without_notification else notify_telegram_withdrawal(restaurant, month, data["withdrawals"][-1])
                         st.session_state[f"withdrawal_revision_{context}"] = revision + 1
                         message = "Вывод сохранён без уведомления." if without_notification else (
                             "Вывод сохранён. Telegram-уведомление отправлено." if telegram_ok else "Вывод сохранён. Telegram-уведомление не отправлено.")
@@ -1333,10 +1340,221 @@ def render_restaurant(data, months):
         render_backup_button(data)
 
 
+def current_partner():
+    account = st.session_state.get('user') or {}
+    if account.get('role') == 'admin':
+        return None
+    partner = account.get('partner')
+    if account.get('role') != 'partner' or partner not in ('Ядровы', 'Тарасенко'):
+        st.error('Для этой учётной записи не настроен доступ к финансам.')
+        st.stop()
+    return partner
+
+
+def personal_summary(data, restaurant, month, partner):
+    result = summary(data, restaurant, month)
+    return result[2] if partner == 'Ядровы' else result[3]
+
+
+def personal_withdrawals(data, restaurant, month, partner):
+    result = []
+    for row in get_withdrawals(data, restaurant, month):
+        distribution = ({'Ядровы': 50, 'Тарасенко': 50} if row.get('mode') == 'До утверждения прибыли'
+                        else row.get('distribution') or get_distribution(restaurant, month))
+        amount = distribution_to_partners(row.get('amount', 0), distribution).get(partner, 0)
+        if amount > 0:
+            # Only the viewer's share is sent to the browser; shared comments and modes are omitted.
+            result.append({'date': row.get('date'), 'amount': amount})
+    return result
+
+
+def render_personal_overview(data, months, prefix, title):
+    partner = current_partner()
+    page_heading(title, 'Ваши начисления, выплаты и остатки — за выбранный месяц.', 'МОИ ФИНАНСЫ', kind='overview')
+    c1, c2 = st.columns(2)
+    with c1:
+        month = select_month(f'{prefix}_month', months, previous_month_key(date.today()))
+    with c2:
+        restaurant = select_restaurant(f'{prefix}_restaurant')
+    if is_closed_month(month):
+        st.markdown('<div class="closed-badge">Закрытый месяц · ваши дивиденды выплачены</div>', unsafe_allow_html=True)
+    approved = sum(profit_is_recorded(data, r, month) for r in RESTAURANTS)
+    values = [personal_summary(data, r, month, partner) for r in RESTAURANTS]
+    accrued, paid, balance = [sum(v[i] for v in values) for i in range(3)]
+    html = '<div class="summary-grid">'
+    for label, value, icon in [('Начислено вам', accrued if approved else None, 'coins'),
+                                ('Выплачено вам', paid, 'arrow'),
+                                ('Ваш остаток', balance if approved or paid else None, 'hourglass')]:
+        html += (f'<div class="summary-item"><div class="summary-icon">{ui_icon(icon)}</div>'
+                 f'<div class="summary-content"><div class="summary-label">{label}</div>'
+                 f'<div class="summary-value">{responsive_money(value) if value is not None else "—"}</div>'
+                 '<div class="summary-footnote">По всем вашим ресторанам за месяц</div></div></div>')
+    st.markdown(html + '</div>', unsafe_allow_html=True)
+    today, _ = get_today_payouts(data)
+    own_today = [(r, amounts[partner]) for r, amounts in today.items() if amounts[partner] > 0]
+    if own_today:
+        st.markdown('<div class="today-panel"><div class="today-title">Вам выплачено сегодня</div>' +
+                    ''.join(f'<div class="today-line">{escape(r)} · <b>{money(a)}</b></div>' for r, a in own_today) + '</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="section-heading"><div class="section-title">Рестораны</div><div class="section-note">{month_label(month)}</div></div>', unsafe_allow_html=True)
+    html = '<div class="cards-grid">'
+    for item in RESTAURANTS:
+        amounts = personal_summary(data, item, month, partner)
+        known = profit_is_recorded(data, item, month)
+        status = 'Фикс' if is_fixed_accrual(item, month) else 'Утверждено' if known else 'С окт. 26' if item == 'Науки' else 'Нет данных'
+        selected = ' selected' if item == restaurant else ''
+        html += (f'<div class="mini-card{selected}" title="{item}"><img class="restaurant-image" '
+                 f'src="app/static/khinkalych/{RESTAURANT_IMAGES[item]}" alt="" loading="lazy">'
+                 f'<div class="mini-body"><div class="mini-head"><div class="mini-title">{item}</div></div>'
+                 f'<div class="mini-financials"><div><div class="mini-label">Начислено вам</div><div class="mini-money">{responsive_money(amounts[0]) if known else "—"}</div></div>'
+                 f'<div><div class="mini-label">Выплачено вам</div><div class="mini-money">{responsive_money(amounts[1])}</div></div></div>'
+                 f'{render_partner_progress("Я" if partner == "Ядровы" else "Т", *amounts[:3], known)}'
+                 f'<div class="mini-small">{status}</div></div></div>')
+    st.markdown(html + '</div><div class="cards-caption">В полосах — ваш остаток к выплате; заполнением показана выплаченная вам доля.</div>', unsafe_allow_html=True)
+    st.subheader(f'{restaurant} · мой баланс')
+    known = profit_is_recorded(data, restaurant, month)
+    amounts = personal_summary(data, restaurant, month, partner)
+    if is_fixed_accrual(restaurant, month):
+        st.caption('Науки · вам начисляется 500 000 ₽ в месяц с октября 2026.')
+    render_single_partner_details(partner, amounts, known)
+    rows = personal_withdrawals(data, restaurant, month, partner)
+    st.subheader('Мои выплаты')
+    if not rows:
+        st.caption('Отдельных операций за выбранный месяц нет.')
+    for row in sorted(rows, key=lambda r: r.get('date', ''), reverse=True):
+        st.markdown(f'<div class="history-row"><div class="history-date">{escape(display_date(row["date"]))}</div><div class="history-amount">{money(row["amount"])}</div></div>', unsafe_allow_html=True)
+
+
+def render_single_partner_details(partner, amounts, known):
+    accrued, paid, balance, investment = amounts
+    html = f'<div class="partner-box"><div class="partner-heading"><div class="partner-avatar">{partner[0]}</div><div class="partner-title">{partner}</div></div><div class="partner-row">'
+    for label, value in [('Начислено', accrued), ('Выплачено', paid), ('Остаток', balance)]:
+        visible = known or label == 'Выплачено' or (label == 'Остаток' and paid > 0)
+        html += f'<div><div class="partner-label">{label}</div><div class="partner-money">{money(value) if visible else "—"}</div></div>'
+    html += '</div>'
+    if investment > 0:
+        html += f'<div class="partner-note">В вашем начислении учтён возврат инвестиций: {money(investment)}.</div>'
+    st.markdown(html + '</div>', unsafe_allow_html=True)
+
+
+def render_personal_archive(data, months):
+    partner = current_partner()
+    page_heading('Мой архив', 'История ваших начислений и выплат.', 'МОИ ФИНАНСЫ', kind='archive')
+    available = sorted({r['month'] for r in data['profits'] + data['withdrawals']} | set(fixed_accrual_months()), reverse=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        year = st.selectbox('Год', ['Все годы'] + sorted({m[:4] for m in available}, reverse=True), key='archive_year')
+    with c2:
+        selected = st.selectbox('Ресторан в архиве', ['Все рестораны'] + list(RESTAURANTS), key='archive_restaurant')
+    restaurants = list(RESTAURANTS) if selected == 'Все рестораны' else [selected]
+    for index, month in enumerate(m for m in available if year == 'Все годы' or m.startswith(year)):
+        total = sum(personal_summary(data, r, month, partner)[0] for r in restaurants)
+        with st.expander(f'{month_label(month)} · вам начислено {money(total)}', expanded=index == 0):
+            shown = False
+            for restaurant in restaurants:
+                known = profit_is_recorded(data, restaurant, month)
+                rows = personal_withdrawals(data, restaurant, month, partner)
+                if not known and not rows:
+                    continue
+                shown = True
+                with st.container(border=True):
+                    st.markdown(f'**{restaurant}**')
+                    render_single_partner_details(partner, personal_summary(data, restaurant, month, partner), known)
+                    for row in sorted(rows, key=lambda r: r.get('date', ''), reverse=True):
+                        st.text(f'{display_date(row["date"])} · вам выплачено {money(row["amount"])}')
+            if not shown:
+                st.info('Ваших начислений и выплат за этот месяц пока нет.')
+
+
+def account_login():
+    login = st.session_state.get('login')
+    if login in USERS and USERS[login] == st.session_state.get('user'):
+        return login
+    for candidate, record in USERS.items():
+        if record == st.session_state.get('user'):
+            st.session_state['login'] = candidate
+            return candidate
+    return None
+
+
+def telegram_service():
+    bot = get_secret('TELEGRAM_BOT_TOKEN', '')
+    github = get_secret('GITHUB_TOKEN', '')
+    repo = get_secret('GITHUB_REPO', '')
+    if not bot or not github or not repo:
+        raise LinkError('Подключение Telegram ещё не настроено администратором.')
+    accounts = {login: hashlib.sha256(json.dumps(record, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+                for login, record in USERS.items() if record.get('role') == 'partner' and record.get('partner') in ('Ядровы', 'Тарасенко')}
+    return get_telegram_link_service(repo, github, bot, accounts,
+        get_secret('APP_URL', 'https://dividend-app-cnrje8zn6ssn8gk8b9nnja.streamlit.app/'),
+        get_secret('TELEGRAM_LINK_KEY', ''))
+
+
+def accept_telegram_return():
+    token = st.query_params.get('tg_return')
+    if not token:
+        return
+    if st.session_state.get('user') is not None:
+        del st.query_params['tg_return']
+        return
+    try:
+        login = telegram_service().consume_return(token)
+        if login in USERS and USERS[login].get('role') == 'partner':
+            st.session_state.user = USERS[login]
+            st.session_state.login = login
+            st.session_state['telegram_returned'] = True
+        else:
+            st.session_state['telegram_return_error'] = 'Ссылка возврата уже использована или истекла. Войдите обычным способом — подключение Telegram сохранено.'
+    except LinkError:
+        st.session_state['telegram_return_error'] = 'Не удалось проверить возврат из Telegram. Войдите в кабинет обычным способом.'
+    del st.query_params['tg_return']
+
+
+@st.fragment(run_every=5)
+def render_telegram_connection():
+    login = account_login()
+    if not login:
+        return
+    with st.container(border=True):
+        try:
+            service = telegram_service()
+            service.start()
+            state = service.state()
+            if login in state['bindings']:
+                st.success('Telegram подключён. Уведомления будут приходить в ваш чат с ботом.')
+                return
+            if service.error:
+                st.warning(service.error)
+            if st.session_state.get('telegram_later'):
+                if st.button('Подключить Telegram', key='telegram_show_again'):
+                    st.session_state['telegram_later'] = False
+                    st.rerun(scope='fragment')
+                return
+            st.markdown('**Подключите Telegram, чтобы получать уведомления**')
+            st.caption('1. Откройте бота по кнопке. 2. Нажмите «Старт». 3. Нажмите в боте «Вернуться в кабинет».')
+            nonce = st.session_state.get('telegram_nonce')
+            request = state['requests'].get(nonce, {})
+            if not request or request.get('expires', 0) <= service.clock():
+                nonce = service.begin(login)
+                st.session_state['telegram_nonce'] = nonce
+            if nonce:
+                st.link_button('Открыть Telegram и подключить', service.deep_link(nonce), type='primary')
+                st.caption('Ссылка действует 15 минут. Открывайте её в своём Telegram и не пересылайте другим.')
+            if st.button('Позже', key='telegram_skip'):
+                st.session_state['telegram_later'] = True
+                st.rerun(scope='fragment')
+        except LinkError as exc:
+            st.info(str(exc))
+            st.caption('Кабинет доступен. Подключение уведомлений можно закончить позже.')
+
+
 if "user" not in st.session_state:
     st.session_state.user = None
 
+accept_telegram_return()
+
 if st.session_state.user is None:
+    if st.session_state.get("telegram_return_error"):
+        st.info(st.session_state.pop("telegram_return_error"))
     with st.container(key="login"):
         st.markdown(f'<div class="login-intro"><div class="brand-mark">{ui_icon("khinkali")}</div>'
                     '<div class="page-title">Старик Хинкалыч</div>'
@@ -1347,6 +1565,7 @@ if st.session_state.user is None:
             if st.form_submit_button("Войти в кабинет", type="primary", width="stretch"):
                 if login in USERS and USERS[login]["password"] == password:
                     st.session_state.user = USERS[login]
+                    st.session_state.login = login
                     st.rerun()
                 else:
                     st.error("Неверный логин или пароль. Проверьте введённые данные.")
@@ -1370,16 +1589,23 @@ with st.container(key="primary_navigation"):
     active_page = st.radio("Раздел", pages, horizontal=True, key="active_page", label_visibility="collapsed", width="stretch")
 if user["role"] == "admin":
     render_storage_status()
+if user["role"] == "partner":
+    render_telegram_connection()
 if "feedback" in st.session_state:
     st.success(st.session_state.pop("feedback"))
 
 if active_page in ("Главная", "Мой кабинет"):
-    render_overview(data, months, "main" if user["role"] == "admin" else "partner",
-                    "Обзор месяца" if user["role"] == "admin" else "Мой кабинет")
+    if user["role"] == "admin":
+        render_overview(data, months, "main", "Обзор месяца")
+    else:
+        render_personal_overview(data, months, "partner", "Мой кабинет")
 elif active_page == "Ресторан" and user["role"] == "admin":
     render_restaurant(data, months)
 elif active_page == "Архив":
-    render_archive(data, months)
+    if user["role"] == "admin":
+        render_archive(data, months)
+    else:
+        render_personal_archive(data, months)
 elif active_page == "Выйти":
     page_heading("Выход из кабинета", "Завершите сеанс на этом устройстве.")
     if st.button("Выйти из кабинета", type="primary"):
