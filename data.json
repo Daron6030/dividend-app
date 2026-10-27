@@ -490,6 +490,19 @@
             },
             "notify": true,
             "comment": ""
+        },
+        {
+            "date": "2026-10-27",
+            "month": "2026-09",
+            "restaurant": "Гончарная",
+            "amount": 200000,
+            "mode": "После утверждения прибыли",
+            "distribution": {
+                "Ядровы": 50,
+                "Тарасенко": 50
+            },
+            "notify": true,
+            "comment": ""
         }
     ]
 }
