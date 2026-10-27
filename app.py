@@ -108,6 +108,7 @@ input[type="text"],input[type="password"],textarea {background:#fffdfb!important
 .stButton>button,.stDownloadButton>button,[data-testid="stFormSubmitButton"]>button {min-height:44px;border-radius:11px;border-color:#ddcfc2;font-weight:600;}
 button[kind="primary"],button[kind="primaryFormSubmit"] {background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important;}
 button[kind="primary"] p,button[kind="primaryFormSubmit"] p {color:#fff!important;font-weight:600;}
+[data-testid="stLinkButton"] a[kind="primary"],[data-testid="stLinkButton"] a[kind="primary"] p {color:#fff!important;font-weight:600;}
 button[kind="primary"]:hover,button[kind="primaryFormSubmit"]:hover {background:#4e0d1a!important;border-color:#4e0d1a!important;}
 button:focus-visible {outline:3px solid #ba8e68!important;outline-offset:3px;}
 [data-testid="stForm"] {border:1px solid var(--line);border-radius:17px;background:#fffcf8;padding:24px!important;}
@@ -1530,7 +1531,7 @@ def render_telegram_connection():
                     st.rerun(scope='fragment')
                 return
             st.markdown('**Подключите Telegram, чтобы получать уведомления**')
-            st.caption('1. Откройте бота по кнопке. 2. Нажмите «Старт». 3. Нажмите в боте «Вернуться в кабинет».')
+            st.caption('Откройте бота → нажмите «Старт» → нажмите «Вернуться в кабинет».')
             nonce = st.session_state.get('telegram_nonce')
             request = state['requests'].get(nonce, {})
             if not request or request.get('expires', 0) <= service.clock():
