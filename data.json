@@ -529,6 +529,19 @@
             },
             "notify": true,
             "comment": ""
+        },
+        {
+            "date": "2026-10-30",
+            "month": "2026-09",
+            "restaurant": "Фонтанка",
+            "amount": 200000,
+            "mode": "Вся сумма: Ядровы",
+            "distribution": {
+                "Ядровы": 100,
+                "Тарасенко": 0
+            },
+            "notify": true,
+            "comment": ""
         }
     ]
 }
