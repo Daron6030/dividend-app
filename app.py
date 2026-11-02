@@ -620,7 +620,9 @@ def all_months(data):
     months.update(fixed_accrual_months())
     current = month_key(date.today())
 
-    for offset in range(-12, 13):
+    # Empty future periods are easy to confuse with the same month this year.
+    # Preserve every saved period, and offer the current/past year for new entries.
+    for offset in range(-12, 1):
         months.add(add_months(current, offset))
 
     return sorted(list(months), reverse=True)
@@ -630,8 +632,7 @@ def latest_profit_month(data):
     months_with_profit = set()
 
     for row in data["profits"]:
-        if row.get("amount", 0) > 0:
-            months_with_profit.add(row["month"])
+        months_with_profit.add(row["month"])
 
     if months_with_profit:
         return sorted(list(months_with_profit), reverse=True)[0]
@@ -1084,10 +1085,25 @@ def render_partner_details(yadrovy, tarasenko, known=True):
     st.markdown(html + '</div>', unsafe_allow_html=True)
 
 
+def remember_profit_month(widget_key):
+    month = st.session_state[widget_key]
+    st.session_state.selected_profit_month = month
+    st.query_params["month"] = month
+
+
 def select_month(key, months, default_month=None, label="Месяц прибыли"):
-    if key not in st.session_state:
-        st.session_state[key] = default_month if default_month in months else months[0]
-    return st.selectbox(label, months, format_func=month_label, key=key)
+    # One selected period across pages; the URL keeps it on browser reload and
+    # calendar rollover. Old sessions retain their currently displayed filter.
+    candidates = (st.query_params.get("month"),
+                  st.session_state.get("selected_profit_month"),
+                  st.session_state.get(key), default_month)
+    selected = next((month for month in candidates if month in months), months[0])
+    st.session_state.selected_profit_month = selected
+    st.session_state[key] = selected
+    if st.query_params.get("month") != selected:
+        st.query_params["month"] = selected
+    return st.selectbox(label, months, format_func=month_label, key=key,
+                        on_change=remember_profit_month, args=(key,))
 
 
 def select_restaurant(key):
@@ -1098,7 +1114,7 @@ def render_overview(data, months, prefix, title):
     page_heading(title, "Прибыль, выплаты и остатки — за выбранный месяц.", "ОБЗОР ФИНАНСОВ", kind="overview")
     c1, c2 = st.columns(2)
     with c1:
-        month = select_month(f"{prefix}_month", months, previous_month_key(date.today()))
+        month = select_month(f"{prefix}_month", months, latest_profit_month(data))
     with c2:
         restaurant = select_restaurant(f"{prefix}_restaurant")
     if is_closed_month(month):
@@ -1202,7 +1218,7 @@ def render_restaurant(data, months):
     page_heading("Работа с рестораном", "Утвердите прибыль или зарегистрируйте выплату партнёрам.", "УПРАВЛЕНИЕ ВЫПЛАТАМИ", kind="restaurant")
     c1, c2 = st.columns(2)
     with c1:
-        month = select_month("restaurant_month", months, previous_month_key(date.today()))
+        month = select_month("restaurant_month", months, latest_profit_month(data))
     with c2:
         restaurant = select_restaurant("restaurant_name")
     st.caption("Месяц прибыли — за какой период заработаны деньги. Дата вывода указывается отдельно.")
@@ -1374,7 +1390,7 @@ def render_personal_overview(data, months, prefix, title):
     page_heading(title, 'Ваши начисления, выплаты и остатки — за выбранный месяц.', 'МОИ ФИНАНСЫ', kind='overview')
     c1, c2 = st.columns(2)
     with c1:
-        month = select_month(f'{prefix}_month', months, previous_month_key(date.today()))
+        month = select_month(f'{prefix}_month', months, latest_profit_month(data))
     with c2:
         restaurant = select_restaurant(f'{prefix}_restaurant')
     if is_closed_month(month):
