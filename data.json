@@ -199,6 +199,11 @@
             "restaurant": "Фонтанка",
             "month": "2026-10",
             "amount": 900000
+        },
+        {
+            "restaurant": "Спортивная",
+            "month": "2026-10",
+            "amount": 1200000
         }
     ],
     "withdrawals": [
