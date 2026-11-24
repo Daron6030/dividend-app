@@ -22,8 +22,21 @@ st.set_page_config(
 
 DATA_FILE = "data.json"
 
+
+def build_user_profiles(configured):
+    users = {login: dict(record) for login, record in configured.items()}
+    shared = users.get("Iadrov", {})
+    if shared.get("role") == "partner" and shared.get("partner") == "Ядровы":
+        # Keep the existing password in Secrets, with separate account identities.
+        # Explicit individual records in Secrets can override these defaults later.
+        users.pop("Iadrov")
+        for login, name in (("Kolya", "Коля"), ("Ksyusha", "Ксюша")):
+            users.setdefault(login, {**shared, "name": name})
+    return users
+
+
 try:
-    USERS = {login: dict(record) for login, record in st.secrets.get("users", {}).items()}
+    USERS = build_user_profiles(st.secrets.get("users", {}))
 except (FileNotFoundError, st.errors.StreamlitSecretNotFoundError):
     USERS = {}
 
@@ -784,7 +797,7 @@ def get_telegram_recipients(withdrawal=None):
                     recipients.append(str(binding['chat_id']))
         except LinkError:
             st.session_state['_telegram_delivery_error'] = True
-    for secret, partner, login in [('TELEGRAM_CHAT_ID_TARASENKO', None, None), ('TELEGRAM_CHAT_ID_YADROVY', 'Ядровы', 'Iadrov'), ('TELEGRAM_CHAT_ID_ALISA', 'Тарасенко', 'Alisa')]:
+    for secret, partner, login in [('TELEGRAM_CHAT_ID_TARASENKO', None, None), ('TELEGRAM_CHAT_ID_ALISA', 'Тарасенко', 'Alisa')]:
         chat_id = get_secret(secret, '')
         if chat_id and login not in bindings and (partner is None or allowed is None or partner in allowed):
             recipients.append(str(chat_id))
@@ -1569,7 +1582,17 @@ if "user" not in st.session_state:
 
 accept_telegram_return()
 
+if st.session_state.user is not None and account_login() is None:
+    old_login = st.session_state.get('login')
+    old_partner = st.session_state.user.get('partner')
+    st.session_state.clear()
+    st.session_state.user = None
+    if old_login == 'Iadrov' or old_partner == 'Ядровы':
+        st.session_state['login_notice'] = 'Для Ядровых теперь два личных входа: Kolya и Ksyusha. Пароль прежний. Войдите под своим именем.'
+
 if st.session_state.user is None:
+    if st.session_state.get('login_notice'):
+        st.info(st.session_state['login_notice'])
     if st.session_state.get("telegram_return_error"):
         st.info(st.session_state.pop("telegram_return_error"))
     with st.container(key="login"):
