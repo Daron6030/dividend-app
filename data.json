@@ -707,6 +707,19 @@
             },
             "notify": true,
             "comment": ""
+        },
+        {
+            "date": "2026-11-25",
+            "month": "2026-10",
+            "restaurant": "Спортивная",
+            "amount": 205000,
+            "mode": "Вся сумма: Тарасенко",
+            "distribution": {
+                "Ядровы": 0,
+                "Тарасенко": 100
+            },
+            "notify": true,
+            "comment": ""
         }
     ]
 }
