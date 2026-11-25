@@ -694,6 +694,19 @@
             },
             "notify": true,
             "comment": "Автокредит"
+        },
+        {
+            "date": "2026-11-25",
+            "month": "2026-10",
+            "restaurant": "Спортивная",
+            "amount": 95000,
+            "mode": "Вся сумма: Ядровы",
+            "distribution": {
+                "Ядровы": 100,
+                "Тарасенко": 0
+            },
+            "notify": true,
+            "comment": ""
         }
     ]
 }
