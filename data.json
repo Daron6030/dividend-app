@@ -707,6 +707,19 @@
             },
             "notify": true,
             "comment": ""
+        },
+        {
+            "date": "2026-11-26",
+            "month": "2026-10",
+            "restaurant": "Гончарная",
+            "amount": 220000,
+            "mode": "Вся сумма: Тарасенко",
+            "distribution": {
+                "Ядровы": 0,
+                "Тарасенко": 100
+            },
+            "notify": false,
+            "comment": "Автокредит"
         }
     ]
 }
