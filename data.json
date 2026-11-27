@@ -746,6 +746,19 @@
             },
             "notify": true,
             "comment": ""
+        },
+        {
+            "date": "2026-11-27",
+            "month": "2026-10",
+            "restaurant": "Фонтанка",
+            "amount": 100000,
+            "mode": "Вся сумма: Тарасенко",
+            "distribution": {
+                "Ядровы": 0,
+                "Тарасенко": 100
+            },
+            "notify": true,
+            "comment": ""
         }
     ]
 }
